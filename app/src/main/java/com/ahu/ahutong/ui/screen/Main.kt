@@ -32,18 +32,20 @@ import com.ahu.ahutong.data.gray.GrayFeatures
 import com.ahu.ahutong.data.gray.GrayReleaseManager
 import com.ahu.ahutong.ui.screen.main.BathroomDeposit
 import com.ahu.ahutong.ui.screen.main.CardBalanceDeposit
+import com.ahu.ahutong.ui.screen.main.CmbCardRecharge
 import com.ahu.ahutong.ui.screen.main.ElectricityDeposit
 import com.ahu.ahutong.ui.screen.main.Exam
 import com.ahu.ahutong.ui.screen.main.FreeClassroom
 import com.ahu.ahutong.ui.screen.main.Grade
 import com.ahu.ahutong.ui.screen.main.Home
 import com.ahu.ahutong.ui.screen.main.LostFound
+import com.ahu.ahutong.ui.screen.main.NetworkRecharge
 import com.ahu.ahutong.ui.screen.main.PhoneBook
+import com.ahu.ahutong.ui.screen.main.Repository
+import com.ahu.ahutong.ui.screen.main.RepositoryDownloads
 import com.ahu.ahutong.ui.screen.main.Schedule
 import com.ahu.ahutong.ui.screen.main.SchoolCalendar
 import com.ahu.ahutong.ui.screen.main.Tools
-import com.ahu.ahutong.ui.screen.main.Repository
-import com.ahu.ahutong.ui.screen.main.RepositoryDownloads
 import com.ahu.ahutong.ui.screen.main.Weather
 import com.ahu.ahutong.ui.screen.settings.Contributors
 import com.ahu.ahutong.ui.screen.settings.Debug
@@ -216,11 +218,19 @@ fun Main(
             }
 
             animatedComposable("card_balance_deposit") {
-                CardBalanceDeposit()
+                CardBalanceDeposit(navController = navController)
             }
 
             animatedComposable("bathroom_deposit") {
                 BathroomDeposit()
+            }
+
+            animatedComposable("cmb_card_recharge") {
+                CmbCardRecharge()
+            }
+
+            animatedComposable("network_recharge") {
+                NetworkRecharge()
             }
 
             animatedComposable("debug") {

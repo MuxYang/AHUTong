@@ -462,6 +462,20 @@ object AHUCache {
         kv.putBoolean("businessAccepted",true)
     }
 
+    fun isCmbCardRechargePreferred(): Boolean {
+        userGetString("cmb_card_recharge_preferred")?.toBooleanStrictOrNull()?.let { return it }
+        val value = kv.getBoolean("cmb_card_recharge_preferred", false)
+        if (kv.containsKey("cmb_card_recharge_preferred")) {
+            userPutString("cmb_card_recharge_preferred", value.toString())
+        }
+        return value
+    }
+
+    fun setCmbCardRechargePreferred(preferred: Boolean) {
+        userPutString("cmb_card_recharge_preferred", preferred.toString())
+        kv.putBoolean("cmb_card_recharge_preferred", preferred)
+    }
+
     /**
      * 获取房间选择信息
      * @return RoomSelectionInfo?
