@@ -45,7 +45,7 @@ interface BaseDataSource {
 
     suspend fun getGrade(): AHUResponse<Grade>
 
-    suspend fun getGpaRankFromHtml(): AHUResponse<GpaRankInfo>
+    suspend fun getGpaRankFromHtml(studentId: String): AHUResponse<GpaRankInfo>
 
     suspend fun getAllCampus(): AHUResponse<AllCampus>
     suspend fun getAllLostFoundType(): AHUResponse<AllLostFoundType>

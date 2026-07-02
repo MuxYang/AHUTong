@@ -20,6 +20,7 @@ import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.data.model.User
 import com.ahu.ahutong.data.mock.MockDataSource
 import com.ahu.ahutong.data.model.GpaRankInfo
+import com.ahu.ahutong.data.model.Grade
 import com.ahu.ahutong.data.server.AhuTong
 import com.ahu.ahutong.sdk.LocalServiceClient
 import com.ahu.ahutong.sdk.RustSDK
@@ -126,6 +127,17 @@ object AHURepository {
      */
     suspend fun getGrade(isRefresh: Boolean = false) = withContext(Dispatchers.IO) {
         if (!isRefresh && !AHUCache.getMockData()) {
+            // 优先从 per-profile 缓存重建合并成绩
+            val perProfile = AHUCache.getPerProfileGrades()
+            val profileGrades = perProfile.values.filterNotNull()
+            if (profileGrades.isNotEmpty()) {
+                val allTerms = profileGrades.flatMap { it.termGradeList ?: emptyList<Grade.TermGradeListBean>() }
+                val merged = Grade()
+                merged.termGradeList = allTerms
+                merged.totalGradePointAverage = allTerms.firstOrNull()?.termGradePointAverage ?: "0.0"
+                return@withContext Result.success(merged)
+            }
+            // 降级到旧缓存
             val localData = AHUCache.getGrade()
             if (localData != null) {
                 return@withContext Result.success(localData)
@@ -134,7 +146,6 @@ object AHURepository {
         try {
             val response = dataSource.getGrade()
             if (response.isSuccessful) {
-                // 保存数据
                 AHUCache.saveGrade(response.data)
                 Result.success(response.data)
             } else {
@@ -459,9 +470,9 @@ object AHURepository {
             dataSource.getSchoolCalendar()
         }
 
-    suspend fun getGpaRankInfo(): AHUResponse<GpaRankInfo> =
+    suspend fun getGpaRankInfo(studentId: String): AHUResponse<GpaRankInfo> =
         withContext(Dispatchers.IO) {
-            dataSource.getGpaRankFromHtml()
+            dataSource.getGpaRankFromHtml(studentId)
         }
 
     suspend fun getAllCampus(): AHUResponse<AllCampus> =

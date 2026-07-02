@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +29,7 @@ import com.ahu.ahutong.data.crawler.model.jwxt.CourseGrade
 import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.data.mock.MockScenarioController
 import com.ahu.ahutong.data.model.Grade
+import com.ahu.ahutong.data.model.GradeStudentProfile
 import com.ahu.ahutong.ui.shape.SmoothRoundedCornerShape
 import com.ahu.ahutong.ui.state.GradeViewModel
 import com.kyant.capsule.ContinuousCapsule
@@ -186,6 +188,37 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                 }
             }
 
+            // Profile selector - shown when student has multiple profiles (micro-major/minor)
+            if (!searchExpanded && gradeViewModel.studentProfiles.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    gradeViewModel.studentProfiles.forEachIndexed { index, profile ->
+                        FilterChip(
+                            selected = gradeViewModel.selectedProfileIndex == index,
+                            onClick = { gradeViewModel.selectedProfileIndex = index },
+                            label = {
+                                Text(
+                                    text = profile.displayName,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = 80.a1 withNight 50.a1,
+                                selectedLabelColor = 100.n1 withNight 0.n1,
+                                containerColor = 90.n1 withNight 20.n1,
+                                labelColor = 10.n1 withNight 90.n1
+                            ),
+                            shape = ContinuousCapsule
+                        )
+                    }
+                }
+            }
+
             // 改成学期下拉选择（替代原来的学年+学期双筛选）
             if (!searchExpanded) {
                 val allTerms = gradeViewModel.grade?.termGradeList
@@ -266,6 +299,17 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
 
             if (!searchExpanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Per-profile empty state
+                    val rankMsg = gradeViewModel.rankEmptyMessage
+                    if (gpaRankInfo == null && !rankMsg.isNullOrBlank()) {
+                        Text(
+                            text = rankMsg,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = 50.n1 withNight 70.n1
+                        )
+                    }
+
                     val infoList = listOf(
                         "本学期平均绩点" to gradeViewModel.termGradePointAverage,
                         "全程平均绩点" to gradeViewModel.totalGradePointAverage,
@@ -315,10 +359,18 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                     }
                 }
             } else if (!searchExpanded) {
+                // Show empty message specific to selected profile
+                val emptyMsg = if (gradeViewModel.studentProfiles.size > 1) {
+                    val p = gradeViewModel.studentProfiles.getOrNull(gradeViewModel.selectedProfileIndex)
+                    if (p != null) "「${p.displayName}」暂无成绩" else "该学期目前没有任何成绩"
+                } else {
+                    "该学期目前没有任何成绩"
+                }
                 Text(
-                    text = "该学期目前没有任何成绩",
+                    text = emptyMsg,
                     modifier = Modifier.padding(24.dp),
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
+                    color = 50.n1 withNight 70.n1
                 )
             }
         }
