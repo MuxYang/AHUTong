@@ -83,6 +83,8 @@ android {
     }
 }
 
+val rustSdkOutputPath = project.file("src/main/jniLibs/arm64-v8a/libahutong_rs.so").absolutePath
+
 val buildRustSdkArm64 by tasks.registering(Exec::class) {
     group = "build"
     description = "Build the Rust SDK arm64-v8a shared library into app jniLibs."
@@ -93,7 +95,11 @@ val buildRustSdkArm64 by tasks.registering(Exec::class) {
     inputs.file(rootProject.file("GuiXu-Rust/Cargo.toml"))
     inputs.file(rootProject.file("GuiXu-Rust/Cargo.lock"))
     inputs.file(rootProject.file("sdk/Cargo.toml"))
-    outputs.file(project.file("src/main/jniLibs/arm64-v8a/libahutong_rs.so"))
+    outputs.file(file(rustSdkOutputPath))
+
+    onlyIf {
+        System.getenv("AHUTONG_REBUILD_RUST") == "1" || !file(rustSdkOutputPath).exists()
+    }
 
     commandLine(
         "cargo",
