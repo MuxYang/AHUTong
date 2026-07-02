@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ahu.ahutong.R
+import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.notification.CourseReminderCapability
 import com.ahu.ahutong.notification.CourseReminderNotifier
 import com.ahu.ahutong.notification.CourseReminderScheduler
@@ -69,6 +70,7 @@ fun Preferences() {
     val preferencesViewModel: PreferencesViewModel = hiltViewModel()
     val context = LocalContext.current
     var isRequestingPermission by remember { mutableStateOf(false) }
+    var useCmbCardRecharge by remember { mutableStateOf(AHUCache.isCmbCardRechargePreferred()) }
 
     val showQRCode by preferencesViewModel.showQRCode.collectAsState()
     val useLiquidGlass by preferencesViewModel.useLiquidGlass.collectAsState()
@@ -132,6 +134,50 @@ fun Preferences() {
             }
         }
         */
+
+        Column(
+            modifier =
+                Modifier
+                    .clip(SmoothRoundedCornerShape(16.dp))
+                    .background(cardColor)
+                    .clickable {
+                        val enabled = !useCmbCardRecharge
+                        useCmbCardRecharge = enabled
+                        AHUCache.setCmbCardRechargePreferred(enabled)
+                    }
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(text = "充值", style = MaterialTheme.typography.headlineSmall)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(SmoothRoundedCornerShape(8.dp))
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(text = "总是使用招商银行充值")
+                    Text(
+                        text = "开启后首页校园卡充值会直接进入招商银行充值",
+                        color = 50.n1 withNight 80.n1,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                LiquidToggle(
+                    selected = { useCmbCardRecharge },
+                    onSelect = { enabled ->
+                        useCmbCardRecharge = enabled
+                        AHUCache.setCmbCardRechargePreferred(enabled)
+                    },
+                    backdrop = backdrop
+                )
+            }
+        }
 
         Column(
             modifier =
