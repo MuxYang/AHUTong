@@ -106,8 +106,7 @@ fun HomeWidgetSlotLayout(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .padding(horizontal = 16.dp),
+                .height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             CampusCard(
@@ -166,9 +165,7 @@ fun HomeWidgetSlotLayout(
             val hasRowContent = slots.getOrNull(leftSlot - 1) != null || slots.getOrNull(rightSlot - 1) != null
             if (isEditing || hasRowContent) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     HomeWidgetSlot(
