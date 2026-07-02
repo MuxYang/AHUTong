@@ -141,13 +141,13 @@ class SdkDataSource : BaseDataSource {
     }
 
 
-    override suspend fun getGpaRankFromHtml(): AHUResponse<GpaRankInfo> {
+    override suspend fun getGpaRankFromHtml(studentId: String): AHUResponse<GpaRankInfo> {
         val response = AHUResponse<GpaRankInfo>()
         try {
-            val htmlResponse = JwxtApi.API.getGrade()
-            if(!htmlResponse.isSuccessful||htmlResponse.body() == null){
+            val htmlResponse = JwxtApi.API.getGpaRankPage(studentId)
+            if (!htmlResponse.isSuccessful || htmlResponse.body() == null) {
                 response.code = -1
-                response.msg = "获取成绩页面失败"
+                response.msg = "获取成绩排名页面失败"
                 return response
             }
 
@@ -171,7 +171,7 @@ class SdkDataSource : BaseDataSource {
             response.data = gpaRankInfo
             return response
 
-        }catch (e: Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
             response.code = -1
             response.msg = "解析失败：${e.message}"
@@ -526,6 +526,8 @@ class SdkDataSource : BaseDataSource {
 
 
     suspend fun getStudentId(): String {
+        val profiles = crawlerFallback.getGradeStudentProfiles()
+        if (profiles.isNotEmpty()) return profiles.first().id
         val lastURL = JwxtApi.API.getGrade().raw().request.url.toString()
         val data = lastURL.split("/")
         return data.last()

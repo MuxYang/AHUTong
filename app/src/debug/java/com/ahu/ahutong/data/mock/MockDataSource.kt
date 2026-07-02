@@ -150,7 +150,7 @@ class MockDataSource : BaseDataSource {
         return success(mockResponse(body, orderId))
     }
 
-    override suspend fun getGpaRankFromHtml(): AHUResponse<GpaRankInfo> =
+    override suspend fun getGpaRankFromHtml(studentId: String): AHUResponse<GpaRankInfo> =
         scenarioResponse(MockEditableEndpoint.GpaRank, GpaRankInfo::class.java) { it.academic.gpaRankInfo }
 
     override suspend fun getAllCampus(): AHUResponse<AllCampus> =
