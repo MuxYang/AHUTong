@@ -43,7 +43,7 @@ object RepositoryManager {
     private const val CONTENT_TREE_CACHE_TIME_KEY = "content_tree_cache_time"
     private const val CONTENT_TREE_CACHE_VERSION_KEY = "content_tree_cache_version"
     private const val CONTENT_UNSUPPORTED_PATHS_KEY = "content_unsupported_paths"
-    private const val CONTENT_CACHE_VERSION = 6
+    private const val CONTENT_CACHE_VERSION = 7
     private const val DOWNLOAD_RECORDS_KEY = "downloaded_files"
     private const val DOWNLOAD_RELATIVE_ROOT = "ahutong"
     private const val GIT_LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/v1"
@@ -82,9 +82,9 @@ object RepositoryManager {
         RepositorySource(
             id = "internet",
             title = "互联网学院",
-            owner = "LaPhilosophie",
-            repo = "AHU-CyberSecurity",
-            branch = "master"
+            owner = "Zeraora-807",
+            repo = "AHU-Internet-Exams-Archive",
+            branch = "main"
         ),
         RepositorySource(
             id = "sbi",
@@ -172,7 +172,9 @@ object RepositoryManager {
             warmUpMutex.withLock {
                 val cachedUpdateTime = kv.decodeLong(CONTENT_TREE_CACHE_TIME_KEY, 0L)
                 val cachedVersion = kv.decodeInt(CONTENT_TREE_CACHE_VERSION_KEY, 0)
+                // UI warm-up passes onProgress and should refresh remote trees even when cache exists.
                 if (!forceRefresh &&
+                    onProgress == null &&
                     cachedUpdateTime > 0L &&
                     cachedVersion == CONTENT_CACHE_VERSION &&
                     getCachedContents("") != null
@@ -941,8 +943,8 @@ object RepositoryManager {
     }
 
     private fun matchesCurrentRepositorySources(items: List<GitHubContentItem>): Boolean {
-        val cachedRoots = items.map { it.path to it.name }
-        val expectedRoots = repositoryRootItems().map { it.path to it.name }
+        val cachedRoots = items.map { listOf(it.path, it.name, it.htmlUrl.orEmpty()) }
+        val expectedRoots = repositoryRootItems().map { listOf(it.path, it.name, it.htmlUrl.orEmpty()) }
         return cachedRoots == expectedRoots
     }
 
