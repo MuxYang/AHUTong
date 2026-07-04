@@ -11,6 +11,7 @@ import com.ahu.ahutong.data.AHURepository
 import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.data.model.GpaRankInfo
 import com.ahu.ahutong.data.model.Grade
+import com.ahu.ahutong.data.model.GradeStudentProfile
 import com.ahu.ahutong.ext.getSchoolYears
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -26,19 +27,31 @@ class GradeViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
     var gpaRankInfo by mutableStateOf<GpaRankInfo?>(null)
     var rankLoading by mutableStateOf(false)
+    var rankEmptyMessage by mutableStateOf<String?>(null)
+    var studentProfiles by mutableStateOf<List<GradeStudentProfile>>(emptyList())
+    var selectedProfileIndex by mutableStateOf(0)
+
+    /** 每个 profile ID → Grade（null = 该专业无成绩） */
+    private var perProfileGrades: Map<String, Grade?> = emptyMap()
 
     fun getGpaRank() = viewModelScope.launch {
         rankLoading = true
+        rankEmptyMessage = null
         try {
-            val result = AHURepository.getGpaRankInfo()
-            if (result.code == 0) {
+            val profile = studentProfiles.getOrNull(selectedProfileIndex)
+            val studentId = profile?.id ?: return@launch
+            val result = AHURepository.getGpaRankInfo(studentId)
+            if (result.code == 0 && result.data != null) {
                 gpaRankInfo = result.data
-                AHUCache.saveGpaRankInfo(result.data)
-                errorMessage = null
+                AHUCache.saveGpaRankInfo(studentId, result.data)
             } else {
-                Log.w("GradeViewModel", "getGpaRank failed: ${result.msg}")
+                gpaRankInfo = null
+                rankEmptyMessage = "「${profile.displayName}」暂无排名信息"
+                Log.w("GradeViewModel", "getGpaRank empty: ${result.msg}")
             }
         } catch (t: Throwable) {
+            gpaRankInfo = null
+            rankEmptyMessage = "获取排名失败：${t.message}"
             Log.w("GradeViewModel", "getGpaRank failed", t)
         } finally {
             rankLoading = false
@@ -50,8 +63,18 @@ class GradeViewModel : ViewModel() {
         try {
             val result = AHURepository.getGrade(isRefresh)
             if (result.isSuccess) {
-                grade = result.getOrNull()
+                // 加载各专业成绩（由 CrawlerDataSource 写入的缓存）
+                perProfileGrades = AHUCache.getPerProfileGrades()
+                // 如果缓存没有 per-profile 数据且有多个 profile，强制网络刷新一次
+                if (perProfileGrades.isEmpty() && studentProfiles.size > 1) {
+                    val netResult = AHURepository.getGrade(isRefresh = true)
+                    if (netResult.isSuccess) {
+                        perProfileGrades = AHUCache.getPerProfileGrades()
+                    }
+                }
+                switchToSelectedProfile()
                 errorMessage = null
+                studentProfiles = AHUCache.getGradeStudentProfiles()
             } else {
                 errorMessage = result.exceptionOrNull()?.message ?: "获取成绩失败"
             }
@@ -60,6 +83,19 @@ class GradeViewModel : ViewModel() {
         } finally {
             isLoading = false
         }
+    }
+
+    private fun switchToSelectedProfile() {
+        val profile = studentProfiles.getOrNull(selectedProfileIndex)
+        val profileGrade = profile?.let { perProfileGrades[it.id] }
+        grade = profileGrade
+        // 新专业的成绩可能为空或不同学期，重置学期选择和绩点到默认
+        if (profileGrade == null) {
+            termGradePointAverage = "暂无"
+            totalGradePointAverage = "暂无"
+        }
+        schoolYear = schoolYears.firstOrNull()
+        schoolTerm = terms.keys.firstOrNull()
     }
 
     var isRefreshing by mutableStateOf(false)
@@ -90,7 +126,6 @@ class GradeViewModel : ViewModel() {
     }
 
     init {
-        // 全程平均绩点：从 GPA 排名接口获取（getGpaRankFromHtml → GpaRankInfo.gpa）
         snapshotFlow { gpaRankInfo }
             .onEach { info ->
                 totalGradePointAverage = info?.gpa?.let { "%.2f".format(it) } ?: "暂无"
@@ -98,7 +133,6 @@ class GradeViewModel : ViewModel() {
             }
             .launchIn(viewModelScope)
 
-        // 学期 + 学年绩点：从 grade 学期列表中取
         snapshotFlow { grade }
             .onEach { refreshTermAndYearGPA() }
             .launchIn(viewModelScope)
@@ -107,11 +141,32 @@ class GradeViewModel : ViewModel() {
             .onEach { refreshTermAndYearGPA() }
             .launchIn(viewModelScope)
 
-        gpaRankInfo = if (AHUCache.getMockData()) null else AHUCache.getGpaRankInfo()
+        // 切换专业 → 清空旧排名 + 切成绩 + 重新获取排名
+        snapshotFlow { selectedProfileIndex }
+            .onEach {
+                if (studentProfiles.isNotEmpty()) {
+                    gpaRankInfo = null
+                    rankEmptyMessage = null
+                    switchToSelectedProfile()
+                    getGpaRank()
+                }
+            }
+            .launchIn(viewModelScope)
+
+        studentProfiles = if (AHUCache.getMockData()) emptyList() else AHUCache.getGradeStudentProfiles()
+        perProfileGrades = AHUCache.getPerProfileGrades()
+        // 加载第一个专业的缓存排名
+        studentProfiles.firstOrNull()?.let {
+            gpaRankInfo = AHUCache.getGpaRankInfo(it.id)
+        }
     }
 
     private fun refreshTermAndYearGPA() {
-        val g = grade ?: return
+        val g = grade
+        if (g == null) {
+            termGradePointAverage = "暂无"
+            return
+        }
         if (schoolYear == null || schoolTerm == null) return
         termGradePointAverage = g.termGradeList
             ?.find { it.schoolYear == schoolYear && it.term == schoolTerm }

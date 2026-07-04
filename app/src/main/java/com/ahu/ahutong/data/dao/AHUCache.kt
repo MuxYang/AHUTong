@@ -10,6 +10,7 @@ import com.ahu.ahutong.data.model.ElectricityDepositHistoryItem
 import com.ahu.ahutong.data.model.Exam
 import com.ahu.ahutong.data.model.GpaRankInfo
 import com.ahu.ahutong.data.model.Grade
+import com.ahu.ahutong.data.model.GradeStudentProfile
 import com.ahu.ahutong.data.model.RoomSelectionInfo
 import com.ahu.ahutong.data.model.User
 import com.ahu.ahutong.ext.fromJson
@@ -404,6 +405,36 @@ object AHUCache {
         }
     }
 
+    fun setGradeStudentProfiles(profiles: List<GradeStudentProfile>) {
+        val data = Gson().toJson(profiles)
+        userPutString("jwxt_student_profiles", data)
+        kv.encode("jwxt_student_profiles", data)
+    }
+
+    fun getGradeStudentProfiles(): List<GradeStudentProfile> {
+        val data = userGetStringOrMigrate("jwxt_student_profiles") {
+            kv.decodeString("jwxt_student_profiles")
+        } ?: ""
+        if (data.isBlank()) return emptyList()
+        return data.fromJson(object : TypeToken<List<GradeStudentProfile>>() {}.type) ?: emptyList()
+    }
+
+    fun savePerProfileGrades(map: Map<GradeStudentProfile, Grade?>) {
+        // Convert to Map<String, Grade?> keyed by id
+        val idMap = map.mapKeys { it.key.id }
+        val data = Gson().toJson(idMap)
+        userPutString("per_profile_grades", data)
+        kv.encode("per_profile_grades", data)
+    }
+
+    fun getPerProfileGrades(): Map<String, Grade?> {
+        val data = userGetStringOrMigrate("per_profile_grades") {
+            kv.decodeString("per_profile_grades")
+        } ?: ""
+        if (data.isBlank()) return emptyMap()
+        return Gson().fromJson(data, object : TypeToken<Map<String, Grade?>>() {}.type) ?: emptyMap()
+    }
+
 
     fun saveString(key: String ,value : String){
         userPutString(key, value)
@@ -627,26 +658,37 @@ object AHUCache {
     }
 
     /**
-     * 保存 GPA 排名信息
+     * 保存按 studentId 分组的 GPA 排名信息
      */
-    fun saveGpaRankInfo(gpaRankInfo: GpaRankInfo) {
-        val data = Gson().toJson(gpaRankInfo)
-        userPutString("gpa_rank_info", data)
-        kv.encode("gpa_rank_info", data)
+    fun saveGpaRankInfo(studentId: String, gpaRankInfo: GpaRankInfo) {
+        val map = getGpaRankInfoMap().toMutableMap()
+        map[studentId] = gpaRankInfo
+        val data = Gson().toJson(map)
+        userPutString("gpa_rank_info_map", data)
+        kv.encode("gpa_rank_info_map", data)
     }
     /**
-     * 获取缓存的 GPA 排名信息
+     * 获取指定 studentId 的缓存 GPA 排名信息
      */
-    fun getGpaRankInfo(): GpaRankInfo? {
-        val data = userGetStringOrMigrate("gpa_rank_info") { kv.decodeString("gpa_rank_info") } ?: ""
-        return data.fromJson(GpaRankInfo::class.java)
+    fun getGpaRankInfo(studentId: String): GpaRankInfo? {
+        return getGpaRankInfoMap()[studentId]
+    }
+    /**
+     * 获取全量 GPA 排名缓存 Map（内部用）
+     */
+    private fun getGpaRankInfoMap(): Map<String, GpaRankInfo> {
+        val data = userGetStringOrMigrate("gpa_rank_info_map") {
+            kv.decodeString("gpa_rank_info_map")
+        } ?: ""
+        if (data.isBlank()) return emptyMap()
+        return Gson().fromJson(data, object : TypeToken<Map<String, GpaRankInfo>>() {}.type) ?: emptyMap()
     }
     /**
      * 清除 GPA 排名缓存
      */
     fun clearGpaRankInfo() {
-        userRemove("gpa_rank_info")
-        kv.removeValueForKey("gpa_rank_info")
+        userRemove("gpa_rank_info_map")
+        kv.removeValueForKey("gpa_rank_info_map")
     }
     /**
      * 保存失物招领校区缓存

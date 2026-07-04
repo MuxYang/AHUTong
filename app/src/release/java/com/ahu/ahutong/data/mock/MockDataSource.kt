@@ -32,7 +32,7 @@ class MockDataSource : BaseDataSource {
 
     override suspend fun getGrade(): AHUResponse<Grade> = unavailable()
 
-    override suspend fun getGpaRankFromHtml(): AHUResponse<GpaRankInfo> = unavailable()
+    override suspend fun getGpaRankFromHtml(studentId: String): AHUResponse<GpaRankInfo> = unavailable()
 
     override suspend fun getAllCampus(): AHUResponse<AllCampus> = unavailable()
 
