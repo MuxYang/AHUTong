@@ -81,6 +81,9 @@ class MainActivity : ComponentActivity() {
                         info = mainViewModel.apkUpdateInfo.value!!,
                         downloading = mainViewModel.apkDownloading.value,
                         progress = mainViewModel.apkProgress.value,
+                        activeRangeCount = mainViewModel.apkActiveRangeCount.value,
+                        downloadSegments = mainViewModel.apkDownloadSegments.value,
+                        downloadElapsedText = mainViewModel.apkDownloadElapsedText.value,
                         errorText = mainViewModel.apkErrorText.value,
                         apkLocalReady = mainViewModel.apkLocalReady.value,
                         onConfirm = {

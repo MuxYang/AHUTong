@@ -1,8 +1,11 @@
 package com.ahu.ahutong.ui.component
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -13,17 +16,23 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.ahu.ahutong.data.server.model.ApkUpdateInfo
 import com.ahu.ahutong.ui.shape.SmoothRoundedCornerShape
+import com.ahu.ahutong.ui.state.ApkDownloadSegment
 import com.kyant.monet.a1
 import com.kyant.monet.n1
 import com.kyant.monet.withNight
@@ -33,6 +42,9 @@ fun ApkUpdateDialog(
     info: ApkUpdateInfo,
     downloading: Boolean,
     progress: Float? = null,
+    activeRangeCount: Int? = null,
+    downloadSegments: List<ApkDownloadSegment> = emptyList(),
+    downloadElapsedText: String? = null,
     errorText: String? = null,
     apkLocalReady: Boolean = false,
     onConfirm: () -> Unit,
@@ -42,7 +54,11 @@ fun ApkUpdateDialog(
     onCancel: () -> Unit = {},
 ) {
     val contentColor = 10.n1 withNight 90.n1
+    val secondaryContentColor = 45.n1 withNight 75.n1
     val containerColor = 100.n1 withNight 20.n1
+    val progressColor = 70.a1 withNight 80.a1
+    val progressTrackColor = 92.n1 withNight 30.n1
+    val activeSegmentColor = 80.a1.copy(alpha = 0.45f) withNight 55.a1.copy(alpha = 0.65f)
 
     AlertDialog(
         onDismissRequest = {
@@ -89,20 +105,60 @@ fun ApkUpdateDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = contentColor
                 )
+                if (!downloadElapsedText.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "本次下载耗时：$downloadElapsedText",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = secondaryContentColor
+                    )
+                }
 
                 if (downloading) {
                     Spacer(Modifier.height(12.dp))
 
                     if (progress == null) {
-                        androidx.compose.material3.LinearProgressIndicator()
-                    } else {
-                        androidx.compose.material3.LinearProgressIndicator(progress = progress)
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = "下载进度：${(progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = contentColor
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = progressColor,
+                            trackColor = progressTrackColor
                         )
+                    } else {
+                        if (downloadSegments.isEmpty()) {
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = progressColor,
+                                trackColor = progressTrackColor
+                            )
+                        } else {
+                            SegmentedApkProgressIndicator(
+                                segments = downloadSegments,
+                                trackColor = progressTrackColor,
+                                completedColor = progressColor,
+                                activeColor = activeSegmentColor
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "下载进度：${(progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = contentColor
+                            )
+                            if (activeRangeCount != null) {
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = "活跃分片：${activeRangeCount}片",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = contentColor
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -131,17 +187,12 @@ fun ApkUpdateDialog(
                 enabled = !downloading,
                 modifier = Modifier.height(56.dp),
                 shape = SmoothRoundedCornerShape(16.dp),
-                colors = if (downloading) {
-                    ButtonDefaults.filledTonalButtonColors(
-                        containerColor = 95.a1 withNight 30.a1,
-                        contentColor = 40.n1 withNight 70.n1
-                    )
-                } else {
-                    ButtonDefaults.filledTonalButtonColors(
-                        containerColor = 90.a1 withNight 85.a1,
-                        contentColor = 0.n1
-                    )
-                }
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = 90.a1 withNight 85.a1,
+                    contentColor = 0.n1,
+                    disabledContainerColor = 90.a1 withNight 85.a1,
+                    disabledContentColor = 0.n1
+                )
             ) {
                 Text(
                     text = when {
@@ -149,8 +200,8 @@ fun ApkUpdateDialog(
                         apkLocalReady -> "安装"
                         else -> "下载并安装"
                     },
-                    style = if (downloading) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
-                    fontWeight = if (downloading) FontWeight.Normal else FontWeight.Medium
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium
                 )
             }
         },
@@ -244,4 +295,46 @@ fun ApkMirrorSourceDialog(
             }
         }
     )
+}
+
+@Composable
+private fun SegmentedApkProgressIndicator(
+    segments: List<ApkDownloadSegment>,
+    trackColor: Color,
+    completedColor: Color,
+    activeColor: Color
+) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+    ) {
+        val radius = size.height / 2f
+        val corner = CornerRadius(radius, radius)
+        drawRoundRect(
+            color = trackColor,
+            cornerRadius = corner,
+            size = size
+        )
+
+        fun drawSegment(startFraction: Float, endFraction: Float, color: Color) {
+            val startX = (startFraction.coerceIn(0f, 1f) * size.width).coerceIn(0f, size.width)
+            val endX = (endFraction.coerceIn(0f, 1f) * size.width).coerceIn(0f, size.width)
+            val width = endX - startX
+            if (width <= 0f) return
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(startX, 0f),
+                size = Size(width, size.height),
+                cornerRadius = corner
+            )
+        }
+
+        segments.filter { it.running }.forEach { segment ->
+            drawSegment(segment.startFraction, segment.endFraction, activeColor)
+        }
+        segments.forEach { segment ->
+            drawSegment(segment.startFraction, segment.downloadedEndFraction, completedColor)
+        }
+    }
 }

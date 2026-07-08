@@ -11,6 +11,7 @@ import okhttp3.ResponseBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
@@ -42,7 +43,11 @@ interface AhuTong {
 
     @Streaming
     @GET
-    suspend fun downloadByUrl(@Url fileUrl: String): retrofit2.Response<ResponseBody>
+    suspend fun downloadByUrl(
+        @Url fileUrl: String,
+        @Header("Range") range: String? = null,
+        @Header("If-Range") ifRange: String? = null
+    ): retrofit2.Response<ResponseBody>
 
 
     companion object {
