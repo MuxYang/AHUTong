@@ -63,18 +63,20 @@ class GradeViewModel : ViewModel() {
         try {
             val result = AHURepository.getGrade(isRefresh)
             if (result.isSuccess) {
-                // 加载各专业成绩（由 CrawlerDataSource 写入的缓存）
+                grade = result.getOrNull()
+                // 加载由 CrawlerDataSource 写入的 per-profile 缓存
                 perProfileGrades = AHUCache.getPerProfileGrades()
-                // 如果缓存没有 per-profile 数据且有多个 profile，强制网络刷新一次
-                if (perProfileGrades.isEmpty() && studentProfiles.size > 1) {
-                    val netResult = AHURepository.getGrade(isRefresh = true)
-                    if (netResult.isSuccess) {
-                        perProfileGrades = AHUCache.getPerProfileGrades()
-                    }
-                }
-                switchToSelectedProfile()
-                errorMessage = null
                 studentProfiles = AHUCache.getGradeStudentProfiles()
+                // 如果 per-profile 缓存为空（单学号学生首次加载），直接使用合并后的 grade
+                if (perProfileGrades.isNotEmpty()) {
+                    switchToSelectedProfile()
+                } else {
+                    // 无 per-profile 数据：单学号学生直接用合并 grade，重置学期选择
+                    schoolYear = schoolYears.firstOrNull()
+                    schoolTerm = terms.keys.firstOrNull()
+                    refreshTermAndYearGPA()
+                }
+                errorMessage = null
             } else {
                 errorMessage = result.exceptionOrNull()?.message ?: "获取成绩失败"
             }
