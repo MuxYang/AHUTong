@@ -47,7 +47,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
-        run: sdkmanager "ndk;27.0.12077973"
+        run: sdkmanager "ndk;28.2.13676358"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
