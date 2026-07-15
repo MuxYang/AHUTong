@@ -18,6 +18,7 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Query
 
@@ -35,13 +36,35 @@ interface YcardApi {
         @Query("synAccessSource") synAccessSource: String = "h5",
     ): CardInfo
 
+    @GET("/charge/feeitem/toAppitem")
+    suspend fun enterFeeItem(
+        @Query("feeitemid") feeitemid: String,
+        @Query("appId") appId: String,
+        @Query("loginFrom") loginFrom: String = "h5",
+        @Query("synAccessSource") synAccessSource: String = "h5",
+        @Query("synjones-auth") synjonesAuth: String
+    ): Response<ResponseBody>
+
+    @Headers("Referer: https://ycard.ahu.edu.cn/charge-app/")
+    @GET("/charge/feeitem/singleFeeitem")
+    suspend fun getSingleFeeItem(
+        @Query("feeitemid") feeitemid: String
+    ): Response<ResponseBody>
+
     @POST("/charge/order/thirdOrder")
     suspend fun getOrderThirdData(@Body body: RequestBody): Response<ResponseBody>
 
-
+    @Headers(
+        "Referer: https://ycard.ahu.edu.cn/charge-app/",
+        "Origin: https://ycard.ahu.edu.cn"
+    )
     @POST("/charge/feeitem/getThirdData")
-    suspend fun getFeeItemThirdData(@Body body: RequestBody):Response<ResponseBody>
+    suspend fun getFeeItemThirdData(@Body body: RequestBody): Response<ResponseBody>
 
+    @Headers(
+        "Referer: https://ycard.ahu.edu.cn/charge-app/",
+        "Origin: https://ycard.ahu.edu.cn"
+    )
     @POST("/blade-pay/pay")
     suspend fun pay(
         @Body body: RequestBody

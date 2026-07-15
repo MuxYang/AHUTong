@@ -1,7 +1,6 @@
 package com.ahu.ahutong.ui.screen.main.home
 
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,9 +42,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -58,6 +56,7 @@ import com.ahu.ahutong.ui.shape.SmoothRoundedCornerShape
 import com.ahu.ahutong.ui.state.DiscoveryViewModel
 import com.kyant.monet.n1
 import com.kyant.monet.withNight
+import java.util.Locale
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -148,34 +147,25 @@ private fun CardView(
                 ),
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-                modifier = Modifier.padding(20.dp)
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 20.dp)
             ) {
                 Text(
                     text = stringResource(id = R.string.card_money),
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(vertical = 15.dp)
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
-                AnimatedContent(targetState = balance to transitionBalance) { (balance, transitionBalance) ->
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(
-                                MaterialTheme.typography.titleLarge.toSpanStyle()
-                                    .copy(fontWeight = FontWeight.Bold)
-                            ) {
-                                append("¥ $balance")
-                            }
-//                        withStyle(
-//                            MaterialTheme.typography.titleSmall.toSpanStyle().copy(
-//                                color = 50.n1 withNight 80.n1
-//                            )
-//                        ) {
-//                            append(" + ¥ $transitionBalance")
-//                        }
-                        }
-                    )
-                }
+                Text(
+                    text = "¥ ${formatCampusCardBalance(balance)}",
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
             }
         }
 
@@ -207,7 +197,12 @@ private fun CardView(
 //                        Toast.makeText(context, "请安装支付宝", Toast.LENGTH_SHORT).show()
 //                    }
 
-                            navController.navigate("card_balance_deposit")
+                            val route = if (AHUCache.isCmbCardRechargePreferred()) {
+                                "cmb_card_recharge"
+                            } else {
+                                "card_balance_deposit"
+                            }
+                            navController.navigate(route)
                         }
                     } else {
                         Modifier
@@ -223,6 +218,11 @@ private fun CardView(
         }
     }
 
+}
+
+private fun formatCampusCardBalance(balance: Double): String {
+    if (!balance.isFinite()) return "--"
+    return String.format(Locale.CHINA, "%.2f", balance)
 }
 
 
@@ -313,7 +313,15 @@ private fun QRcodeView(balance: Double, onBack: () -> Unit) {
             }
         }
         Box(
-            modifier = Modifier.size(200.dp),
+            modifier = Modifier
+                .size(200.dp)
+                .clip(SmoothRoundedCornerShape(8.dp))
+                .background(Color.White)
+                .border(
+                    1.dp,
+                    Color.Gray,
+                    SmoothRoundedCornerShape(8.dp)
+                ),
             contentAlignment = Alignment.Center
         ) {
             if (finished) {
@@ -327,12 +335,7 @@ private fun QRcodeView(balance: Double, onBack: () -> Unit) {
                                 discoveryViewModel.loadQrCode()
                                 discoveryViewModel.refreshCardBalance()
                             }
-                            .clip(SmoothRoundedCornerShape(8.dp))
-                            .border(
-                                1.dp,
-                                Color.Gray,
-                                SmoothRoundedCornerShape(8.dp)
-                            )
+                            .padding(8.dp)
                     )
                 } ?: Text(
                     text = "加载失败"
@@ -343,7 +346,7 @@ private fun QRcodeView(balance: Double, onBack: () -> Unit) {
         }
 
         Text(
-            text = "¥ $balance",
+            text = "¥ ${formatCampusCardBalance(balance)}",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 12.dp)
@@ -374,6 +377,11 @@ private fun QRcodeView(balance: Double, onBack: () -> Unit) {
                                     )
                                 )
                                 .background(Color.White)
+                                .border(
+                                    1.dp,
+                                    Color.Gray,
+                                    SmoothRoundedCornerShape(24.dp)
+                                )
                                 .clickable {
                                     discoveryViewModel.loadQrCode()
                                     discoveryViewModel.refreshCardBalance()

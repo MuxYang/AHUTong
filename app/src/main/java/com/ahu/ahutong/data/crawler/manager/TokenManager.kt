@@ -2,6 +2,7 @@ package com.ahu.ahutong.data.crawler.manager
 
 import android.util.Log
 import com.ahu.ahutong.data.crawler.api.ycard.YcardApi
+import okhttp3.Response
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -25,7 +26,8 @@ object TokenManager {
             CookieManager.cookieJar.logAllCookies()
 
             val loginResponse = YcardApi.API.login().execute()      //假设已经登陆过one.ahu.ehu.cn
-            val redirectUrl = loginResponse.raw().request.url.toString()
+            val redirectUrl = extractRedirectLocation(loginResponse)
+                ?: loginResponse.raw().request.url.toString()
 
             val regex = Regex("[?&]ticket=([^&]+)")
             val match = regex.find(redirectUrl)
@@ -68,6 +70,19 @@ object TokenManager {
         return withContext(Dispatchers.IO) {
             getToken()
         }
+    }
+
+    private fun extractRedirectLocation(response: retrofit2.Response<*>): String? {
+        var current: Response? = response.raw().priorResponse
+        while (current != null) {
+            current.header("Location")?.let { location ->
+                if ("ticket=" in location) {
+                    return location
+                }
+            }
+            current = current.priorResponse
+        }
+        return response.raw().header("Location")
     }
 
     fun clear(){
