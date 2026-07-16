@@ -137,16 +137,11 @@ object AHURepository {
                 merged.totalGradePointAverage = allTerms.firstOrNull()?.termGradePointAverage ?: "0.0"
                 return@withContext Result.success(merged)
             }
-            // 降级到旧缓存
-            val localData = AHUCache.getGrade()
-            if (localData != null) {
-                return@withContext Result.success(localData)
-            }
+            // per-profile 缓存为空 → 走网络获取（同时会自动填充 per-profile 缓存）
         }
         try {
             val response = dataSource.getGrade()
             if (response.isSuccessful) {
-                AHUCache.saveGrade(response.data)
                 Result.success(response.data)
             } else {
                 Result.failure(Throwable(response.msg))
