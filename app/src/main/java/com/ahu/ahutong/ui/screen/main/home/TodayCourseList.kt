@@ -74,10 +74,13 @@ fun TodayCourseList(
         return
     }
 
-    val currentCourseIndex = todayCourses.indexOfLast {
+    val activeCourseIndex = todayCourses.indexOfFirst {
+        currentMinutes in ScheduleViewModel.getCourseTimeRangeInMinutes(it)
+    }
+    val timelineProgressIndex = todayCourses.indexOfLast {
         val range = ScheduleViewModel.getCourseTimeRangeInMinutes(it)
-        currentMinutes > range.first
-    }.coerceAtLeast(0)
+        currentMinutes >= range.first
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,64 +100,67 @@ fun TodayCourseList(
                 val onColor = 50.a1 withNight 90.a1
                 val activatedColor = 90.a1
                 drawBehind {
+                    val rowHeight = 40.dp.toPx()
+                    val markerX = 4.dp.toPx()
+                    val markerRadius = 4.dp.toPx()
+                    val markerStroke = 2.dp.toPx()
+                    val activeBackgroundStart = 0f
+                    if (activeCourseIndex >= 0) {
+                        drawRoundRect(
+                            color = activatedColor,
+                            topLeft = Offset(
+                                activeBackgroundStart,
+                                rowHeight * activeCourseIndex - 12.dp.toPx()
+                            ),
+                            size = Size(
+                                size.width + 8.dp.toPx(),
+                                48.dp.toPx()
+                            ),
+                            cornerRadius = CornerRadius(24.dp.toPx())
+                        )
+                    }
                     drawLine(
                         color = offColor,
-                        start = Offset(4.dp.toPx(), 12.dp.toPx()),
-                        end = Offset(4.dp.toPx(), size.height - 12.dp.toPx()),
+                        start = Offset(markerX, 12.dp.toPx()),
+                        end = Offset(markerX, size.height - 12.dp.toPx()),
                         strokeWidth = 1.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(
                             intervals = floatArrayOf(4.dp.toPx(), 4.dp.toPx()),
                             phase = 8.dp.toPx()
                         )
                     )
-                    drawLine(
-                        color = onColor,
-                        start = Offset(4.dp.toPx(), 12.dp.toPx()),
-                        end = Offset(
-                            4.dp.toPx(),
-                            40.dp.toPx() * currentCourseIndex + 12.dp.toPx()
-                        ),
-                        strokeWidth = 2.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(
-                            intervals = floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
-                            phase = 4.dp.toPx()
-                        )
-                    )
-                    repeat(currentCourseIndex + 1) {
-                        drawCircle(
+                    if (timelineProgressIndex >= 0) {
+                        drawLine(
                             color = onColor,
-                            radius = 4.dp.toPx(),
-                            center = Offset(
-                                4.dp.toPx(),
-                                40.dp.toPx() * it + 12.dp.toPx()
+                            start = Offset(markerX, 12.dp.toPx()),
+                            end = Offset(
+                                markerX,
+                                rowHeight * timelineProgressIndex + 12.dp.toPx()
+                            ),
+                            strokeWidth = 2.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(
+                                intervals = floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
+                                phase = 4.dp.toPx()
                             )
                         )
                     }
-                    repeat(todayCourses.size - currentCourseIndex - 1) {
-                        drawCircle(
-                            color = offColor,
-                            radius = 2.dp.toPx(),
-                            center = Offset(
-                                4.dp.toPx(),
-                                40.dp.toPx() * (currentCourseIndex + 1 + it) + 12.dp.toPx()
-                            ),
-                            style = Stroke(2.dp.toPx())
-                        )
-                    }
-                    val currentCourseRange =
-                        ScheduleViewModel.getCourseTimeRangeInMinutes(
-                            todayCourses[currentCourseIndex]
-                        )
-                    if (currentMinutes in currentCourseRange) {
-                        drawRoundRect(
-                            color = activatedColor,
-                            topLeft = Offset(
-                                0f,
-                                40.dp.toPx() * currentCourseIndex - 12.dp.toPx()
-                            ),
-                            size = Size(size.width + 8.dp.toPx(), 48.dp.toPx()),
-                            cornerRadius = CornerRadius(24.dp.toPx())
-                        )
+                    todayCourses.indices.forEach { index ->
+                        val center = Offset(markerX, rowHeight * index + 12.dp.toPx())
+                        val color = if (index <= timelineProgressIndex) onColor else offColor
+                        if (index == activeCourseIndex) {
+                            drawCircle(
+                                color = color,
+                                radius = markerRadius,
+                                center = center
+                            )
+                        } else {
+                            drawCircle(
+                                color = color,
+                                radius = markerRadius,
+                                center = center,
+                                style = Stroke(markerStroke)
+                            )
+                        }
                     }
                 }
             },

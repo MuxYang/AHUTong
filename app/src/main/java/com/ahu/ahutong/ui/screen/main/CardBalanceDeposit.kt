@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.data.mock.MockScenarioController
 import com.ahu.ahutong.ui.shape.SmoothRoundedCornerShape
@@ -80,6 +82,7 @@ private const val ALIPAY_CAMPUS_CARD_FALLBACK_URL = "https://www.wmslz.com/s/M6K
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardBalanceDeposit(
+    navController: NavController,
     viewModel: CardBalanceDepositViewModel = viewModel()
 ) {
 
@@ -91,6 +94,7 @@ fun CardBalanceDeposit(
     val paymentState by viewModel.paymentState.collectAsState()
 
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showCmbPreferenceDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -234,13 +238,23 @@ fun CardBalanceDeposit(
 
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 24.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(
+                text = "招商银行充值点这里",
+                modifier = Modifier
+                    .clickable { showCmbPreferenceDialog = true }
+                    .padding(horizontal = 8.dp, vertical = 16.dp),
+                color = 30.n1 withNight 70.n1,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
-                    .navigationBarsPadding()
-                    .padding(16.dp)
                     .clip(SmoothRoundedCornerShape(32.dp))
                     .background(
                         animateColorAsState(
@@ -436,6 +450,51 @@ fun CardBalanceDeposit(
                             .padding(8.dp),
                         color = 10.n1 withNight 90.n1
                     )
+                }
+            )
+        }
+
+        if (showCmbPreferenceDialog) {
+            AlertDialog(
+                containerColor = 100.n1 withNight 20.n1,
+                titleContentColor = 10.n1 withNight 90.n1,
+                textContentColor = 40.n1 withNight 60.n1,
+                onDismissRequest = { showCmbPreferenceDialog = false },
+                title = { Text("使用招商银行充值") },
+                text = { Text("是否以后都默认使用招商银行充值？") },
+                confirmButton = {
+                    Text(
+                        text = "以后都用",
+                        modifier = Modifier
+                            .clickable {
+                                AHUCache.setCmbCardRechargePreferred(true)
+                                showCmbPreferenceDialog = false
+                                navController.navigate("cmb_card_recharge")
+                            }
+                            .padding(8.dp),
+                        color = 10.n1 withNight 90.n1
+                    )
+                },
+                dismissButton = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            text = "取消",
+                            modifier = Modifier
+                                .clickable { showCmbPreferenceDialog = false }
+                                .padding(8.dp),
+                            color = 10.n1 withNight 90.n1
+                        )
+                        Text(
+                            text = "仅本次",
+                            modifier = Modifier
+                                .clickable {
+                                    showCmbPreferenceDialog = false
+                                    navController.navigate("cmb_card_recharge")
+                                }
+                                .padding(8.dp),
+                            color = 10.n1 withNight 90.n1
+                        )
+                    }
                 }
             )
         }

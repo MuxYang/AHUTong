@@ -10,6 +10,7 @@ import com.franmontiel.persistentcookiejar.cache.CookieCache;
 import com.franmontiel.persistentcookiejar.persistence.CookiePersistor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -138,5 +139,16 @@ public class AHUCookieJar implements ClearableCookieJar {
         cache.addAll(cookies);
         // 如果需要持久化（下次启动免登录），这里会自动保存
         persistor.saveAll(filterPersistentCookies(cookies));
+    }
+
+    @NonNull
+    synchronized public List<Cookie> getAllCookies() {
+        List<Cookie> cookies = new ArrayList<>();
+        for (Cookie cookie : cache) {
+            if (!isCookieExpired(cookie)) {
+                cookies.add(cookie);
+            }
+        }
+        return Collections.unmodifiableList(cookies);
     }
 }
