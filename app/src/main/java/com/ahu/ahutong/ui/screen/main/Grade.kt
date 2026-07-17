@@ -21,10 +21,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ahu.ahutong.R
+import com.ahu.ahutong.data.GradeEvaluationGate
 import com.ahu.ahutong.data.crawler.model.jwxt.CourseGrade
 import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.data.mock.MockScenarioController
@@ -39,7 +43,10 @@ import com.kyant.monet.withNight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
+fun Grade(
+    gradeViewModel: GradeViewModel = viewModel(),
+    onNavigateToEvaluation: () -> Unit = {}
+) {
     val grade = gradeViewModel.grade
     val gpaRankInfo = gradeViewModel.gpaRankInfo
     val errorMessage = gradeViewModel.errorMessage
@@ -135,6 +142,7 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                 ) {
                     Text(
                         text = stringResource(id = R.string.grade),
+                        color = 0.n1 withNight 100.n1,
                         style = MaterialTheme.typography.headlineMedium
                     )
 
@@ -148,7 +156,8 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
-                                contentDescription = "刷新成绩"
+                                contentDescription = "刷新成绩",
+                                tint = 0.n1 withNight 100.n1
                             )
                         }
 
@@ -163,7 +172,8 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                                     Icons.Default.Close
                                 else
                                     Icons.Default.Search,
-                                contentDescription = null
+                                contentDescription = null,
+                                tint = 0.n1 withNight 100.n1
                             )
                         }
                     }
@@ -182,7 +192,10 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                             cursorColor = 90.a1 withNight 90.a1,
                         ),
                         placeholder = {
-                            Text("搜索课程")
+                            Text(
+                                text = "搜索课程",
+                                color = 50.n1 withNight 70.n1
+                            )
                         }
                     )
                 }
@@ -326,8 +339,16 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(title, style = MaterialTheme.typography.titleMedium)
-                            Text(value, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = title,
+                                color = 0.n1 withNight 100.n1,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = value,
+                                color = 0.n1 withNight 100.n1,
+                                style = MaterialTheme.typography.titleMedium
+                            )
                         }
                     }
                 }
@@ -341,11 +362,15 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                     searchResultsByTerm.forEach { (term, items) ->
                         Text(
                             text = "${term.schoolYear} 第${term.term}学期",
+                            color = 0.n1 withNight 100.n1,
                             style = MaterialTheme.typography.titleMedium
                         )
 
                         items.forEach { item ->
-                            GradeCard(item)
+                            GradeCard(
+                                item = item,
+                                onNavigateToEvaluation = onNavigateToEvaluation
+                            )
                         }
                     }
                 }
@@ -355,7 +380,10 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     gradeData.gradeList.forEach {
-                        GradeCard(it)
+                        GradeCard(
+                            item = it,
+                            onNavigateToEvaluation = onNavigateToEvaluation
+                        )
                     }
                 }
             } else if (!searchExpanded) {
@@ -379,8 +407,14 @@ fun Grade(gradeViewModel: GradeViewModel = viewModel()) {
 
 @Composable
 private fun GradeCard(
-    item: Grade.TermGradeListBean.GradeListBean
+    item: Grade.TermGradeListBean.GradeListBean,
+    onNavigateToEvaluation: () -> Unit
 ) {
+    val needsEvaluation = GradeEvaluationGate.isRequiredPayload(item.grade) ||
+        GradeEvaluationGate.isRequiredPayload(item.gradeDetail)
+    val gradeText = item.grade.stripHtml()
+    val gradeDetail = item.gradeDetail.stripHtml()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -391,15 +425,37 @@ private fun GradeCard(
     ) {
         Text(
             text = item.course ?: "",
+            color = 0.n1 withNight 100.n1,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleMedium
         )
 
-        Text(
-            text = "成绩: ${item.grade}    绩点: ${item.gradePoint}    学分: ${item.credit}",
-            color = 30.n1 withNight 90.n1,
-            style = MaterialTheme.typography.bodyLarge
-        )
+        if (needsEvaluation) {
+            val linkColor = 40.a1 withNight 80.a1
+            Text(
+                text = buildAnnotatedString {
+                    append("成绩: ")
+                    withStyle(
+                        SpanStyle(
+                            color = linkColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    ) {
+                        append(GradeEvaluationGate.MESSAGE)
+                    }
+                    append("    绩点: ${item.gradePoint}    学分: ${item.credit}")
+                },
+                modifier = Modifier.clickable(onClick = onNavigateToEvaluation),
+                color = 30.n1 withNight 90.n1,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        } else {
+            Text(
+                text = "成绩: $gradeText    绩点: ${item.gradePoint}    学分: ${item.credit}",
+                color = 30.n1 withNight 90.n1,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
 
         Text(
             text = "${item.courseNature ?: ""} (${item.courseNum ?: ""})",
@@ -407,8 +463,7 @@ private fun GradeCard(
             style = MaterialTheme.typography.bodyMedium
         )
 
-        val gradeDetail = item.gradeDetail?.replace(Regex("<[^>]*>"), "")?.trim()
-        if (!gradeDetail.isNullOrBlank()) {
+        if (!needsEvaluation && !gradeDetail.isNullOrBlank()) {
             Text(
                 text = gradeDetail,
                 color = 40.a1 withNight 80.a1,
@@ -416,4 +471,15 @@ private fun GradeCard(
             )
         }
     }
+}
+
+private fun String?.stripHtml(): String {
+    return orEmpty()
+        .replace("&nbsp;", " ")
+        .replace("&#160;", " ")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+        .replace(Regex("<[^>]*>"), "")
+        .trim()
 }

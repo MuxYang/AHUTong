@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +35,8 @@ fun AtAGlance(
     todayCourses: List<Course>,
     currentMinutes: Int,
     navController: NavHostController,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    trailingContent: @Composable RowScope.() -> Unit = {}
 ) {
     val currentCourse = todayCourses.find {
         currentMinutes in ScheduleViewModel.getCourseTimeRangeInMinutes(it)
@@ -66,8 +68,10 @@ fun AtAGlance(
         ) {
             Text(
                 text = date,
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge
             )
+            trailingContent()
         }
         Column(
             modifier = Modifier

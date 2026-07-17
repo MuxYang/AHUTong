@@ -51,6 +51,13 @@ object HomeWidgetRegistry {
             tint = Color(0xFF4CAF50)
         ),
         HomeWidgetSpec(
+            id = "evaluation",
+            title = "教评",
+            route = "evaluation",
+            iconId = R.drawable.ic_evaluation,
+            tint = Color(0xFF0D9488)
+        ),
+        HomeWidgetSpec(
             id = "school_calendar",
             title = "校历",
             route = "school_calendar",

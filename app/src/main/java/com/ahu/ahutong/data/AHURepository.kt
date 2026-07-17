@@ -2,6 +2,7 @@ package com.ahu.ahutong.data
 
 import android.util.Log
 import com.ahu.ahutong.data.base.BaseDataSource
+import com.ahu.ahutong.data.crawler.CrawlerDataSource
 import com.ahu.ahutong.data.crawler.SdkDataSource
 import com.ahu.ahutong.data.crawler.api.adwmh.AdwmhApi
 import com.ahu.ahutong.data.crawler.api.jwxt.JwxtApi
@@ -21,6 +22,7 @@ import com.ahu.ahutong.data.model.User
 import com.ahu.ahutong.data.mock.MockDataSource
 import com.ahu.ahutong.data.model.GpaRankInfo
 import com.ahu.ahutong.data.model.Grade
+import com.ahu.ahutong.data.model.GradeStudentProfile
 import com.ahu.ahutong.data.server.AhuTong
 import com.ahu.ahutong.sdk.LocalServiceClient
 import com.ahu.ahutong.sdk.RustSDK
@@ -140,6 +142,7 @@ object AHURepository {
             // per-profile 缓存为空 → 走网络获取（同时会自动填充 per-profile 缓存）
         }
         try {
+            if (!AHUCache.getMockData()) syncCookies()
             val response = dataSource.getGrade()
             if (response.isSuccessful) {
                 Result.success(response.data)
@@ -150,6 +153,52 @@ object AHURepository {
             e.printStackTrace()
             Result.failure(e)
         }
+    }
+
+    suspend fun getGradeStudentProfiles(): List<GradeStudentProfile> = withContext(Dispatchers.IO) {
+        if (AHUCache.getMockData()) {
+            Log.i(TAG, "getGradeStudentProfiles skip: mock data")
+            return@withContext emptyList()
+        }
+
+        AHUCache.getGradeStudentProfiles().takeIf { it.isNotEmpty() }?.let {
+            Log.i(TAG, "getGradeStudentProfiles cache size=${it.size}")
+            return@withContext it
+        }
+
+        syncCookies()
+        val resolved = runCatching {
+            when (val source = dataSource) {
+                is SdkDataSource -> source.getGradeStudentProfiles()
+                is CrawlerDataSource -> source.getGradeStudentProfiles()
+                else -> emptyList()
+            }
+        }.onFailure {
+            Log.w(TAG, "getGradeStudentProfiles resolve failed", it)
+        }.getOrDefault(emptyList())
+
+        if (resolved.isNotEmpty()) {
+            Log.i(TAG, "getGradeStudentProfiles resolved size=${resolved.size}")
+            return@withContext resolved
+        }
+
+        val fallback = AHUCache.getJwxtStudentId()
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                GradeStudentProfile(
+                    id = it,
+                    trainingType = "主修",
+                    department = "",
+                    major = "本专业"
+                )
+            }
+        if (fallback != null) {
+            Log.w(TAG, "getGradeStudentProfiles fallback cached internal id=${fallback.id.maskStudentId()}")
+            return@withContext listOf(fallback)
+        }
+
+        Log.w(TAG, "getGradeStudentProfiles empty: no internal jwxt student id")
+        emptyList()
     }
 
     /**
@@ -467,7 +516,15 @@ object AHURepository {
 
     suspend fun getGpaRankInfo(studentId: String): AHUResponse<GpaRankInfo> =
         withContext(Dispatchers.IO) {
-            dataSource.getGpaRankFromHtml(studentId)
+            Log.i(TAG, "getGpaRankInfo start studentId=${studentId.maskStudentId()}")
+            syncCookies()
+            val response = dataSource.getGpaRankFromHtml(studentId)
+            Log.i(
+                TAG,
+                "getGpaRankInfo finish code=${response.code} hasData=${response.data != null} " +
+                    "msg=${response.msg.orEmpty().take(120)}"
+            )
+            response
         }
 
     suspend fun getAllCampus(): AHUResponse<AllCampus> =
@@ -550,5 +607,10 @@ object AHURepository {
         } catch (e: Throwable) {
             Result.failure(e)
         }
+    }
+
+    private fun String.maskStudentId(): String {
+        if (length <= 4) return "****"
+        return take(2) + "***" + takeLast(2)
     }
 }

@@ -9,5 +9,9 @@ data class GradeStudentProfile(
     val major: String          // 专业
 ) : Serializable {
     val displayName: String
-        get() = "$major ($trainingType)"
+        get() {
+            val safeMajor = major.ifBlank { "本专业" }
+            val safeTrainingType = trainingType.ifBlank { "主修" }
+            return "$safeMajor ($safeTrainingType)"
+        }
 }

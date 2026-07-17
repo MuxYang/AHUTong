@@ -52,6 +52,8 @@ import com.ahu.ahutong.ui.screen.main.home.HomeWidgetSlotLayout
 import com.ahu.ahutong.ui.screen.main.home.TodayCourseList
 import com.ahu.ahutong.ui.state.DiscoveryViewModel
 import com.ahu.ahutong.ui.state.ScheduleViewModel
+import com.ahu.ahutong.ui.state.WeatherHomeConfig
+import com.ahu.ahutong.ui.state.WeatherHomeMode
 import kotlinx.coroutines.delay
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -112,6 +114,7 @@ fun Home(
             dropSlopPx = dropSlopPx
         )
     }
+    val weatherHomeConfig = WeatherHomeConfig.fromCache()
 
     fun saveHomeWidgetSlots(slots: List<String?>) {
         val normalizedSlots = normalizeHomeWidgetSlots(slots)
@@ -295,7 +298,21 @@ fun Home(
                 todayCourses = todayCourses,
                 currentMinutes = currentMinutes,
                 navController = navController,
-                enabled = !isEditingHome
+                enabled = !isEditingHome,
+                trailingContent = {
+                    if (
+                        !isEditingHome &&
+                        weatherHomeConfig.showOnHome &&
+                        weatherHomeConfig.mode == WeatherHomeMode.Compact
+                    ) {
+                        HomeWeatherWidget(
+                            onClick = { navController.navigate("weather") },
+                            modifier = Modifier.padding(start = 12.dp),
+                            config = weatherHomeConfig,
+                            mode = WeatherHomeMode.Compact
+                        )
+                    }
+                }
             )
             if (todayCourses.isNotEmpty()) {
                 SlideInContent(visible = 0 in discoveryViewModel.visibilities) {
@@ -307,8 +324,14 @@ fun Home(
                     )
                 }
             }
-            SlideInContent(visible = !isEditingHome) {
-                HomeWeatherWidget(onClick = { navController.navigate("weather") })
+            if (weatherHomeConfig.showOnHome && weatherHomeConfig.mode == WeatherHomeMode.Detailed) {
+                SlideInContent(visible = !isEditingHome) {
+                    HomeWeatherWidget(
+                        onClick = { navController.navigate("weather") },
+                        config = weatherHomeConfig,
+                        mode = WeatherHomeMode.Detailed
+                    )
+                }
             }
             SlideInContent(visible = 1 in discoveryViewModel.visibilities) {
                 HomeWidgetSlotLayout(

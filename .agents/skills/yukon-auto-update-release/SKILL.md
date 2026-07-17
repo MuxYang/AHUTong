@@ -107,6 +107,30 @@ It performs these actions:
 - Backs up the old APK as `ahutong.apk_{version}.bak`, appending a timestamp if that backup already exists.
 - Updates `apk_version.txt`, creates or updates `apk_version_name.txt`, and writes the generated or explicitly supplied 1-2 changelog lines to `apk_changelog.txt`.
 
+## Local Release Build Notes
+
+- Use JDK 17+ for release signing. The current signing keystore is PKCS12/PBES2-based; JDK 8 cannot read it reliably.
+- Prefer the project wrapper for normal release builds:
+
+  ```powershell
+  .\gradlew.bat :app:assembleRelease
+  ```
+
+- If the wrapper cannot download but Gradle is already unpacked locally, using the unpacked `gradle.bat` is acceptable for diagnostics only. Do not encode machine-specific Gradle paths in scripts.
+- Release builds enable R8 (`isMinifyEnabled = true`), so every Gson model package and every Retrofit API interface used by release-only flows must be kept. At minimum keep:
+
+  ```proguard
+  -keep class com.ahu.ahutong.data.model.** { *; }
+  -keep class com.ahu.ahutong.data.crawler.model.** { *; }
+  -keep class com.ahu.ahutong.data.repository.** { *; }
+  -keep class com.ahu.ahutong.data.weather.** { *; }
+  -keep interface com.ahu.ahutong.data.crawler.api.jwxt.EvaluationApi { *; }
+  -keep class com.ahu.ahutong.data.EvaluationRepository { *; }
+  -keep class com.ahu.ahutong.data.AHURepository { *; }
+  ```
+
+- When signing manually, align before signing and explicitly pass `--ks-type PKCS12`. From Git Bash/MSYS2 invoke `apksigner.bat` with the `.bat` suffix. Do not store keystore passwords, server passwords, or host credentials in this skill or in committed files; use ignored local config or one-off shell input.
+
 ## Release Branch and Changelog Rule
 
 Always publish from `release/{target versionName}`. If the branch exists locally, check it out. If it exists only on `origin`, create a local tracking branch.

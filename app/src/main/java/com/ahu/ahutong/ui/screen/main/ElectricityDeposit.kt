@@ -580,6 +580,7 @@ fun ElectricityDeposit(
         if (showDialog) {
             AlertDialog(
                 containerColor = 100.n1 withNight 20.n1,
+                textContentColor = 10.n1 withNight 90.n1,
                 onDismissRequest = { showDialog = false },
                 title = { Text("请输入校园卡密码", color = 10.n1 withNight 90.n1) },
                 text = {
@@ -637,6 +638,9 @@ fun ElectricityDeposit(
         }
         if (showResetDialog) {
             AlertDialog(
+                containerColor = 100.n1 withNight 20.n1,
+                titleContentColor = 10.n1 withNight 90.n1,
+                textContentColor = 40.n1 withNight 70.n1,
                 onDismissRequest = { showResetDialog = false },
                 title = { Text("确认操作") },
                 text = { Text("您确定要将累计充值金额清零吗？此操作不可撤销。") },
@@ -648,14 +652,14 @@ fun ElectricityDeposit(
                             showResetDialog = false
                         }
                     ) {
-                        Text("确认")
+                        Text("确认", color = 40.a1 withNight 80.a1)
                     }
                 },
                 dismissButton = {
                     TextButton(
                         onClick = { showResetDialog = false }
                     ) {
-                        Text("取消")
+                        Text("取消", color = 40.a1 withNight 80.a1)
                     }
                 }
             )

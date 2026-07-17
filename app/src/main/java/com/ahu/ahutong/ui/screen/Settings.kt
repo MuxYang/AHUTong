@@ -357,6 +357,7 @@ fun Settings(
                 Text(
                     text = "您的登录状态、课表等信息将会被永久清除",
                     modifier = Modifier.padding(horizontal = 24.dp),
+                    color = 0.n1 withNight 100.n1,
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
@@ -385,6 +386,7 @@ fun Settings(
                             }
                         }
                         .padding(16.dp, 8.dp),
+                    color = 100.n1 withNight 100.n1,
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -402,6 +404,7 @@ fun Settings(
                 Text(
                     text = stringResource(id = R.string.update_intro),
                     modifier = Modifier.padding(horizontal = 24.dp),
+                    color = 0.n1 withNight 100.n1,
                     style = MaterialTheme.typography.headlineMedium
                 )
                 Column(
@@ -412,6 +415,7 @@ fun Settings(
                     Text(
 //                        text = RustSDK.getUpdateLog(),
                         text = updateLog,
+                        color = 0.n1 withNight 100.n1,
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }

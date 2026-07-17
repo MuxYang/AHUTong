@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -63,6 +64,8 @@ import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.ui.screen.main.schedule.CourseCard
 import com.ahu.ahutong.ui.screen.main.schedule.CourseCardSpec
 import com.ahu.ahutong.ui.screen.main.schedule.CourseDetailDialog
+import com.ahu.ahutong.ui.screen.main.schedule.shortScheduleLocation
+import com.ahu.ahutong.ui.screen.main.schedule.weekRangeText
 import com.ahu.ahutong.ui.shape.SmoothRoundedCornerShape
 import com.ahu.ahutong.ui.state.ScheduleViewModel
 import com.kyant.capsule.ContinuousCapsule
@@ -474,7 +477,10 @@ private fun ScheduleSettingsDialog(
             },
             confirmButton = {
                 TextButton(onClick = onDismiss) {
-                    Text(text = "完成")
+                    Text(
+                        text = "完成",
+                        color = 40.a1 withNight 80.a1
+                    )
                 }
             }
         )
@@ -532,6 +538,13 @@ private fun OverviewCourseGroupCard(
 ) {
     val course = courses.firstOrNull() ?: return
     val fullHeight = cellHeight * course.length + cellSpacing * (course.length - 1)
+    val sortedCourses = remember(courses) {
+        courses.sortedWith(
+            compareBy<Course> { it.startWeek }
+                .thenBy { it.endWeek }
+                .thenBy { it.name ?: "" }
+        )
+    }
     Box(
         modifier = with(CourseCardSpec) {
             Modifier
@@ -552,7 +565,7 @@ private fun OverviewCourseGroupCard(
         }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            courses.forEachIndexed { index, item ->
+            sortedCourses.forEachIndexed { index, item ->
                 val isCurrentWeek = currentWeek in item.weekIndexes
                 val color = colors.getOrElse(item.name) { 50.a1 }
                 CompositionLocalProvider(
@@ -569,53 +582,13 @@ private fun OverviewCourseGroupCard(
                             .clickable { onClick(item) }
                             .padding(4.dp)
                     ) {
-                        Text(
-                            text = item.name,
-                            modifier = Modifier.padding(bottom = 38.dp),
-                            color = 100.n1,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = if (courses.size <= 2) 3 else 2,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium
+                        OverviewCourseContent(
+                            course = item,
+                            stackedCount = sortedCourses.size
                         )
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.BottomCenter),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "${item.startWeek}-${item.endWeek}",
-                                color = 100.n1,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                style = TextStyle(
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-                            Text(
-                                text = item.location.shortLocation(),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(SmoothRoundedCornerShape(6.dp))
-                                    .background(95.a1 withNight 30.n2)
-                                    .padding(2.dp),
-                                textAlign = TextAlign.Center,
-                                overflow = TextOverflow.Ellipsis,
-                                maxLines = 2,
-                                style = TextStyle(
-                                    fontSize = 11.sp,
-                                    color = 10.n1 withNight 90.n1,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-                        }
                     }
                 }
-                if (index != courses.lastIndex) {
+                if (index != sortedCourses.lastIndex) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -628,19 +601,64 @@ private fun OverviewCourseGroupCard(
     }
 }
 
-private fun String?.shortLocation(): String {
-    val location = this
-        ?.replace("博学北楼", "博北")
-        ?.replace("博学南楼", "博南")
-        ?.replace("笃行南楼", "笃南")
-        ?.replace("笃行北楼", "笃北")
-        ?.replace("互联大楼", "互楼")
-        ?.replace("体育场", "体")
-    val labRoom = location
-        ?.trim()
-        ?.let { Regex("(?<![A-Za-z0-9])([A-Za-z]\\d{3})\\s*\\[").
+@Composable
+private fun BoxScope.OverviewCourseContent(
+    course: Course,
+    stackedCount: Int
+) {
+    Text(
+        text = course.name ?: "",
+        modifier = Modifier.padding(bottom = 38.dp),
+        color = 100.n1,
+        fontWeight = FontWeight.Bold,
+        maxLines = if (stackedCount <= 1) 3 else 2,
+        overflow = TextOverflow.Ellipsis,
+        style = MaterialTheme.typography.labelMedium
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.BottomCenter),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = course.weekRangeText(),
+            color = 100.n1,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            style = TextStyle(
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        OverviewLocationPill(
+            text = course.location.shortScheduleLocation(),
+            maxLines = if (stackedCount <= 1) 2 else 1
+        )
+    }
+}
 
-
-        find(it)?.groupValues?.get(1) }
-    return labRoom ?: location.takeIf { !it.isNullOrBlank() } ?: "未知"
+@Composable
+private fun OverviewLocationPill(
+    text: String,
+    maxLines: Int
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(SmoothRoundedCornerShape(6.dp))
+            .background(95.a1 withNight 30.n2)
+            .padding(2.dp),
+        textAlign = TextAlign.Center,
+        overflow = TextOverflow.Ellipsis,
+        maxLines = maxLines,
+        style = TextStyle(
+            fontSize = 11.sp,
+            color = 10.n1 withNight 90.n1,
+            fontWeight = FontWeight.Bold
+        )
+    )
 }
