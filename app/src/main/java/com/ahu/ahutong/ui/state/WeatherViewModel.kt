@@ -17,13 +17,47 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
+enum class WeatherHomeMode(val cacheValue: String) {
+    Detailed("detailed"),
+    Compact("compact");
+
+    companion object {
+        fun fromCacheValue(value: String?): WeatherHomeMode {
+            return values().firstOrNull { it.cacheValue == value } ?: Detailed
+        }
+    }
+}
+
 data class WeatherHomeConfig(
     val showOnHome: Boolean = false,
+    val mode: WeatherHomeMode = WeatherHomeMode.Detailed,
     val showTemp: Boolean = true,
     val showWeather: Boolean = true,
     val showAqi: Boolean = true,
     val showLocation: Boolean = true,
-)
+) {
+    fun saveToCache() {
+        AHUCache.saveWeatherShowOnHome(showOnHome)
+        AHUCache.saveWeatherHomeMode(mode.cacheValue)
+        AHUCache.saveWeatherHomeShowTemp(showTemp)
+        AHUCache.saveWeatherHomeShowWeather(showWeather)
+        AHUCache.saveWeatherHomeShowAqi(showAqi)
+        AHUCache.saveWeatherHomeShowLocation(showLocation)
+    }
+
+    companion object {
+        fun fromCache(): WeatherHomeConfig {
+            return WeatherHomeConfig(
+                showOnHome = AHUCache.getWeatherShowOnHome(),
+                mode = WeatherHomeMode.fromCacheValue(AHUCache.getWeatherHomeMode()),
+                showTemp = AHUCache.getWeatherHomeShowTemp(),
+                showWeather = AHUCache.getWeatherHomeShowWeather(),
+                showAqi = AHUCache.getWeatherHomeShowAqi(),
+                showLocation = AHUCache.getWeatherHomeShowLocation(),
+            )
+        }
+    }
+}
 
 class WeatherViewModel : ViewModel() {
 
@@ -49,7 +83,7 @@ class WeatherViewModel : ViewModel() {
         private set
 
     init {
-        homeConfig = WeatherHomeConfig(showOnHome = AHUCache.getWeatherShowOnHome())
+        homeConfig = WeatherHomeConfig.fromCache()
     }
 
     fun fetchWeather(city: String? = null) {
@@ -183,7 +217,7 @@ class WeatherViewModel : ViewModel() {
 
     fun updateHomeConfig(config: WeatherHomeConfig) {
         homeConfig = config
-        AHUCache.saveWeatherShowOnHome(config.showOnHome)
+        config.saveToCache()
     }
 
     val locationName: String

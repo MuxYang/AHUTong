@@ -7,6 +7,7 @@ import com.ahu.ahutong.data.crawler.model.adwnh.LostFoundTypeItem
 import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.data.model.ElectricityChargeInfo
 import com.ahu.ahutong.data.model.ElectricityDepositHistoryItem
+import com.ahu.ahutong.data.model.EvalPreset
 import com.ahu.ahutong.data.model.Exam
 import com.ahu.ahutong.data.model.GpaRankInfo
 import com.ahu.ahutong.data.model.Grade
@@ -154,6 +155,27 @@ object AHUCache {
      */
     fun getWisdomPassword(): String? {
         return initGetStringOrMigrate("password_wisdom") { kv_init.decodeString("password_wisdom") }
+    }
+
+    fun saveEvalToken(token: String) {
+        userPutString("eval_token", token)
+        kv.encode("eval_token", token)
+    }
+
+    fun getEvalToken(): String? {
+        return userGetStringOrMigrate("eval_token") { kv.decodeString("eval_token") }
+    }
+
+    fun saveEvalPreset(preset: EvalPreset) {
+        val data = Gson().toJson(preset)
+        userPutString("eval_preset", data)
+        kv.encode("eval_preset", data)
+    }
+
+    fun getEvalPreset(): EvalPreset {
+        val data = userGetStringOrMigrate("eval_preset") { kv.decodeString("eval_preset") } ?: ""
+        if (data.isBlank()) return EvalPreset()
+        return data.fromJson(EvalPreset::class.java) ?: EvalPreset()
     }
 
     /**
@@ -377,6 +399,7 @@ object AHUCache {
     fun logout() {
         clearCurrentUser()
         saveWisdomPassword("")
+        saveEvalToken("")
         saveRustCookies("")
     }
 
@@ -812,11 +835,58 @@ object AHUCache {
     /**
      * 天气首页显示设置
      */
+    private const val WEATHER_SHOW_ON_HOME_KEY = "weather_show_on_home"
+    private const val WEATHER_HOME_MODE_KEY = "weather_home_mode"
+    private const val WEATHER_HOME_SHOW_TEMP_KEY = "weather_home_show_temp"
+    private const val WEATHER_HOME_SHOW_WEATHER_KEY = "weather_home_show_weather"
+    private const val WEATHER_HOME_SHOW_AQI_KEY = "weather_home_show_aqi"
+    private const val WEATHER_HOME_SHOW_LOCATION_KEY = "weather_home_show_location"
+
     fun saveWeatherShowOnHome(enabled: Boolean) {
-        kv.encode("weather_show_on_home", enabled)
+        kv.encode(WEATHER_SHOW_ON_HOME_KEY, enabled)
     }
 
     fun getWeatherShowOnHome(): Boolean {
-        return kv.decodeBool("weather_show_on_home", false)
+        return kv.decodeBool(WEATHER_SHOW_ON_HOME_KEY, false)
+    }
+
+    fun saveWeatherHomeMode(mode: String) {
+        kv.encode(WEATHER_HOME_MODE_KEY, mode)
+    }
+
+    fun getWeatherHomeMode(): String {
+        return kv.decodeString(WEATHER_HOME_MODE_KEY) ?: "detailed"
+    }
+
+    fun saveWeatherHomeShowTemp(enabled: Boolean) {
+        kv.encode(WEATHER_HOME_SHOW_TEMP_KEY, enabled)
+    }
+
+    fun getWeatherHomeShowTemp(): Boolean {
+        return kv.decodeBool(WEATHER_HOME_SHOW_TEMP_KEY, true)
+    }
+
+    fun saveWeatherHomeShowWeather(enabled: Boolean) {
+        kv.encode(WEATHER_HOME_SHOW_WEATHER_KEY, enabled)
+    }
+
+    fun getWeatherHomeShowWeather(): Boolean {
+        return kv.decodeBool(WEATHER_HOME_SHOW_WEATHER_KEY, true)
+    }
+
+    fun saveWeatherHomeShowAqi(enabled: Boolean) {
+        kv.encode(WEATHER_HOME_SHOW_AQI_KEY, enabled)
+    }
+
+    fun getWeatherHomeShowAqi(): Boolean {
+        return kv.decodeBool(WEATHER_HOME_SHOW_AQI_KEY, true)
+    }
+
+    fun saveWeatherHomeShowLocation(enabled: Boolean) {
+        kv.encode(WEATHER_HOME_SHOW_LOCATION_KEY, enabled)
+    }
+
+    fun getWeatherHomeShowLocation(): Boolean {
+        return kv.decodeBool(WEATHER_HOME_SHOW_LOCATION_KEY, true)
     }
 }

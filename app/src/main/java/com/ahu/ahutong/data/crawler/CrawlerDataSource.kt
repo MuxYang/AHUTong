@@ -249,19 +249,41 @@ class CrawlerDataSource : BaseDataSource {
 
     override suspend fun getGpaRankFromHtml(studentId: String): AHUResponse<GpaRankInfo> {
         val response = AHUResponse<GpaRankInfo>()
+        val maskedStudentId = studentId.maskStudentId()
+        Log.i(TAG, "getGpaRankFromHtml fallback start studentId=$maskedStudentId")
         try {
             val htmlResponse = JwxtApi.API.getGpaRankPage(studentId)
+            Log.i(
+                TAG,
+                "getGpaRankFromHtml fallback http code=${htmlResponse.code()} " +
+                    "success=${htmlResponse.isSuccessful} " +
+                    "finalUrl=${htmlResponse.raw().request.url.toString().redactStudentId(studentId)}"
+            )
             if (!htmlResponse.isSuccessful || htmlResponse.body() == null) {
                 response.code = -1
                 response.msg = "获取成绩排名页面失败"
+                Log.w(TAG, "getGpaRankFromHtml fallback empty/non-success body studentId=$maskedStudentId")
                 return response
             }
 
             val html = htmlResponse.body()!!.string()
+            Log.i(
+                TAG,
+                "getGpaRankFromHtml fallback html length=${html.length} " +
+                    "hasModel=${GpaRankHtmlParser.hasModelAssignment(html)} " +
+                    "looksLogin=${html.contains("cas/login", ignoreCase = true) || html.contains("tologin", ignoreCase = true)}"
+            )
             val jsObject = GpaRankHtmlParser.extractModelObject(html)
+            Log.i(TAG, "getGpaRankFromHtml fallback model extracted length=${jsObject.length}")
 
             val json = convertJsToJson(jsObject)
             val gpaRankInfo = Gson().fromJson(json, GpaRankInfo::class.java)
+            Log.i(
+                TAG,
+                "getGpaRankFromHtml fallback parsed gpa=${gpaRankInfo.gpa} " +
+                    "rank=${gpaRankInfo.majorRank}/${gpaRankInfo.majorHeadCount} " +
+                    "semesters=${gpaRankInfo.gpaSemesterSubs.size}"
+            )
 
             response.code = 0
             response.msg = "success"
@@ -269,7 +291,7 @@ class CrawlerDataSource : BaseDataSource {
             return response
 
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "getGpaRankFromHtml fallback failed studentId=$maskedStudentId", e)
             response.code = -1
             response.msg = "解析失败：${e.message}"
             return response
@@ -618,11 +640,14 @@ class CrawlerDataSource : BaseDataSource {
     private fun parseGradeStudentProfiles(html: String): List<GradeStudentProfile> {
         val doc = Jsoup.parse(html)
         val panels = doc.select(".student-panel-block")
+        Log.i(TAG, "parseGradeStudentProfiles panels=${panels.size}")
         if (panels.isEmpty()) return emptyList()
 
         return panels.mapNotNull { panel ->
             val button = panel.select("button[onclick*=myFunction]").first()
-            val id = button?.attr("value") ?: return@mapNotNull null
+            val id = button?.attr("value")?.takeIf { it.isNotBlank() }
+                ?: button?.attr("onclick")?.let { Regex("""(\d+)""").find(it)?.value }
+                ?: return@mapNotNull null
 
             val dds = panel.select("dd")
             val trainingType = dds.getOrNull(0)?.text()?.trim() ?: ""
@@ -647,33 +672,52 @@ class CrawlerDataSource : BaseDataSource {
     suspend fun getGradeStudentProfiles(): List<GradeStudentProfile> {
         // Check cache first
         val cached = AHUCache.getGradeStudentProfiles()
-        if (cached.isNotEmpty()) return cached
+        if (cached.isNotEmpty()) {
+            Log.i(TAG, "getGradeStudentProfiles cache size=${cached.size}")
+            return cached
+        }
 
         // Try legacy redirect approach (single ID, no micro-major)
         try {
             val redirectUrl = JwxtApi.API.getGrade().raw().request.url.toString()
             val lastSegment = redirectUrl.split("/").last()
+            Log.i(
+                TAG,
+                "getGradeStudentProfiles redirect last=${lastSegment.maskStudentId()}"
+            )
             if (lastSegment.toIntOrNull() != null) {
                 // Redirect worked - single student, no multi-panel
                 val list = listOf(GradeStudentProfile(
                     id = lastSegment,
                     trainingType = "主修",
                     department = "",
-                    major = ""
+                    major = "本专业"
                 ))
                 AHUCache.setGradeStudentProfiles(list)
                 // Also set legacy ID for backward compat
                 AHUCache.setJwxtStudentId(lastSegment)
                 return list
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            Log.w(TAG, "getGradeStudentProfiles redirect failed", e)
+        }
 
         // Redirect didn't work - parse HTML for multi-panel
         try {
             val htmlResponse = JwxtApi.API.getGrade()
+            Log.i(
+                TAG,
+                "getGradeStudentProfiles html http code=${htmlResponse.code()} " +
+                    "success=${htmlResponse.isSuccessful} finalUrl=${htmlResponse.raw().request.url}"
+            )
             if (htmlResponse.isSuccessful && htmlResponse.body() != null) {
                 val html = htmlResponse.body()!!.string()
                 val profiles = parseGradeStudentProfiles(html)
+                Log.i(
+                    TAG,
+                    "getGradeStudentProfiles html length=${html.length} parsed=${profiles.size} " +
+                        "looksLogin=${html.contains("cas/login", ignoreCase = true) || html.contains("tologin", ignoreCase = true)}"
+                )
                 if (profiles.isNotEmpty()) {
                     AHUCache.setGradeStudentProfiles(profiles)
                     // Also set first ID as legacy for backward compat
@@ -685,6 +729,7 @@ class CrawlerDataSource : BaseDataSource {
             Log.w(TAG, "Failed to parse grade student profiles", e)
         }
 
+        Log.w(TAG, "getGradeStudentProfiles empty")
         return emptyList()
     }
 
@@ -699,5 +744,15 @@ class CrawlerDataSource : BaseDataSource {
         val lastURL = JwxtApi.API.getGrade().raw().request.url.toString()
         val data = lastURL.split("/")
         return data.last()
+    }
+
+    private fun String.maskStudentId(): String {
+        if (length <= 4) return "****"
+        return take(2) + "***" + takeLast(2)
+    }
+
+    private fun String.redactStudentId(studentId: String): String {
+        if (studentId.isBlank()) return this
+        return replace(studentId, studentId.maskStudentId())
     }
 }

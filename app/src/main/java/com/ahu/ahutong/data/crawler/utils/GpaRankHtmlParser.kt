@@ -6,6 +6,10 @@ object GpaRankHtmlParser {
         """(?i)(?:\bvar\b|\blet\b|\bconst\b)?\s*(?:window\s*\.\s*)?gpasemestermodel\s*="""
     )
 
+    fun hasModelAssignment(html: String): Boolean {
+        return assignmentPattern.containsMatchIn(html)
+    }
+
     fun extractModelObject(html: String): String {
         val match = assignmentPattern.find(html)
             ?: throw Exception("未找到 gpaSemesterModel 变量")

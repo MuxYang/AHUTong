@@ -10,6 +10,8 @@ data class WeatherResponse(
     val weather: String?,
     @SerializedName("weather_icon")
     val weatherIcon: String?,
+    @SerializedName("weather_code")
+    val weatherCode: String?,
     val temperature: Double?,
     @SerializedName("wind_direction")
     val windDirection: String?,

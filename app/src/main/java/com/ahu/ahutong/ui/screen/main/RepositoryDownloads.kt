@@ -243,8 +243,16 @@ private fun ConfirmDialog(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(message, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = title,
+                color = 0.n1 withNight 100.n1,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = message,
+                color = 30.n1 withNight 90.n1,
+                style = MaterialTheme.typography.bodyMedium
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
@@ -252,6 +260,7 @@ private fun ConfirmDialog(
                 Text(
                     text = "取消",
                     modifier = Modifier.clickable { onCancel() }.padding(horizontal = 12.dp, vertical = 8.dp),
+                    color = 40.a1 withNight 80.a1,
                     style = MaterialTheme.typography.labelLarge
                 )
                 Spacer(modifier = Modifier.width(16.dp))

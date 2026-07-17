@@ -65,6 +65,7 @@ import com.ahu.ahutong.data.repository.RepositoryDirectorySummary
 import com.ahu.ahutong.data.repository.RepositoryManager
 import com.ahu.ahutong.ui.state.RepositoryMarkdownUiState
 import com.ahu.ahutong.ui.state.RepositoryViewModel
+import com.kyant.monet.a1
 import com.kyant.monet.n1
 import com.kyant.monet.withNight
 import io.noties.markwon.Markwon
@@ -284,6 +285,7 @@ internal fun RepositoryMarkdownReader(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = markdownState.document?.title ?: "Markdown",
+                    color = 0.n1 withNight 100.n1,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -291,7 +293,7 @@ internal fun RepositoryMarkdownReader(
                 )
                 Text(
                     "关闭",
-                    color = Color(0xFF42A5F5),
+                    color = 40.a1 withNight 80.a1,
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier
                         .clickable { onDismiss() }

@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class GradeViewModel : ViewModel() {
+    private val tag = "GradeViewModel"
+
     var totalGradePointAverage by mutableStateOf("暂无")
     var termGradePointAverage by mutableStateOf("暂无")
     var grade by mutableStateOf<Grade?>(null)
@@ -35,26 +37,48 @@ class GradeViewModel : ViewModel() {
     private var perProfileGrades: Map<String, Grade?> = emptyMap()
 
     fun getGpaRank() = viewModelScope.launch {
+        if (rankLoading) {
+            Log.i(tag, "getGpaRank skip: already loading")
+            return@launch
+        }
         rankLoading = true
         rankEmptyMessage = null
         try {
-            val profile = studentProfiles.getOrNull(selectedProfileIndex)
-            val studentId = profile?.id ?: return@launch
+            Log.i(tag, "getGpaRank start profiles=${studentProfiles.size} selected=$selectedProfileIndex")
+            val rankProfiles = resolveRankProfiles()
+            val safeProfileIndex = selectedProfileIndex.takeIf { it in rankProfiles.indices } ?: 0
+            val profile = rankProfiles.getOrNull(safeProfileIndex)
+            val studentId = profile?.id ?: run {
+                Log.w(tag, "getGpaRank skip: no selected profile")
+                return@launch
+            }
+            Log.i(tag, "getGpaRank request studentId=${studentId.maskStudentId()} profile=${profile.displayName}")
             val result = AHURepository.getGpaRankInfo(studentId)
+            Log.i(
+                tag,
+                "getGpaRank response code=${result.code} hasData=${result.data != null} " +
+                    "msg=${result.msg.orEmpty().take(120)}"
+            )
             if (result.code == 0 && result.data != null) {
                 gpaRankInfo = result.data
                 AHUCache.saveGpaRankInfo(studentId, result.data)
+                Log.i(
+                    tag,
+                    "getGpaRank success gpa=${result.data.gpa} rank=${result.data.majorRank}/" +
+                        "${result.data.majorHeadCount} semesters=${result.data.gpaSemesterSubs.size}"
+                )
             } else {
                 gpaRankInfo = null
                 rankEmptyMessage = "「${profile.displayName}」暂无排名信息"
-                Log.w("GradeViewModel", "getGpaRank empty: ${result.msg}")
+                Log.w(tag, "getGpaRank empty: ${result.msg}")
             }
         } catch (t: Throwable) {
             gpaRankInfo = null
             rankEmptyMessage = "获取排名失败：${t.message}"
-            Log.w("GradeViewModel", "getGpaRank failed", t)
+            Log.w(tag, "getGpaRank failed", t)
         } finally {
             rankLoading = false
+            Log.i(tag, "getGpaRank finish rankLoading=$rankLoading hasRank=${gpaRankInfo != null}")
         }
     }
 
@@ -66,7 +90,7 @@ class GradeViewModel : ViewModel() {
                 grade = result.getOrNull()
                 // 加载由 CrawlerDataSource 写入的 per-profile 缓存
                 perProfileGrades = AHUCache.getPerProfileGrades()
-                studentProfiles = AHUCache.getGradeStudentProfiles()
+                val profiles = resolveRankProfiles()
                 // 如果 per-profile 缓存为空（单学号学生首次加载），直接使用合并后的 grade
                 if (perProfileGrades.isNotEmpty()) {
                     switchToSelectedProfile()
@@ -77,6 +101,9 @@ class GradeViewModel : ViewModel() {
                     refreshTermAndYearGPA()
                 }
                 errorMessage = null
+                if (profiles.isNotEmpty()) {
+                    getGpaRank()
+                }
             } else {
                 errorMessage = result.exceptionOrNull()?.message ?: "获取成绩失败"
             }
@@ -100,6 +127,30 @@ class GradeViewModel : ViewModel() {
         schoolTerm = terms.keys.firstOrNull()
     }
 
+    private suspend fun resolveRankProfiles(): List<GradeStudentProfile> {
+        var profiles = studentProfiles
+        if (profiles.isEmpty() && !AHUCache.getMockData()) {
+            profiles = AHUCache.getGradeStudentProfiles()
+            Log.i(tag, "resolveRankProfiles cache size=${profiles.size}")
+        }
+        if (profiles.isEmpty() && !AHUCache.getMockData()) {
+            profiles = AHURepository.getGradeStudentProfiles()
+            Log.i(tag, "resolveRankProfiles repository size=${profiles.size}")
+        }
+        if (profiles.isNotEmpty()) {
+            if (selectedProfileIndex !in profiles.indices) selectedProfileIndex = 0
+            if (perProfileGrades.isNotEmpty() || profiles.size == 1) {
+                studentProfiles = profiles
+            } else {
+                Log.i(
+                    tag,
+                    "resolveRankProfiles keep selector hidden: profiles=${profiles.size} perProfileGrades=0"
+                )
+            }
+        }
+        return profiles
+    }
+
     var isRefreshing by mutableStateOf(false)
         private set
 
@@ -107,8 +158,7 @@ class GradeViewModel : ViewModel() {
         viewModelScope.launch {
             isRefreshing = true
             try {
-                getGarde(true)
-                getGpaRank()
+                getGarde(true).join()
             } finally {
                 isRefreshing = false
             }
@@ -155,10 +205,15 @@ class GradeViewModel : ViewModel() {
             }
             .launchIn(viewModelScope)
 
-        studentProfiles = if (AHUCache.getMockData()) emptyList() else AHUCache.getGradeStudentProfiles()
+        val cachedProfiles = if (AHUCache.getMockData()) emptyList() else AHUCache.getGradeStudentProfiles()
         perProfileGrades = AHUCache.getPerProfileGrades()
+        studentProfiles = if (perProfileGrades.isNotEmpty() || cachedProfiles.size <= 1) {
+            cachedProfiles
+        } else {
+            emptyList()
+        }
         // 加载第一个专业的缓存排名
-        studentProfiles.firstOrNull()?.let {
+        cachedProfiles.firstOrNull()?.let {
             gpaRankInfo = AHUCache.getGpaRankInfo(it.id)
         }
     }
@@ -174,5 +229,10 @@ class GradeViewModel : ViewModel() {
             ?.find { it.schoolYear == schoolYear && it.term == schoolTerm }
             ?.termGradePointAverage
             ?: "暂无"
+    }
+
+    private fun String.maskStudentId(): String {
+        if (length <= 4) return "****"
+        return take(2) + "***" + takeLast(2)
     }
 }

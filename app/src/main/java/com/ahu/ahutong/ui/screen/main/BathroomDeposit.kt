@@ -471,6 +471,7 @@ fun BathroomDeposit(
                 AlertDialog(
                     containerColor = 100.n1 withNight 20.n1,
                     titleContentColor = 10.n1 withNight 90.n1,
+                    textContentColor = 10.n1 withNight 90.n1,
                     onDismissRequest = { showDialog = false },
                     title = { Text("请输入校园卡密码") },
                     text = {
@@ -496,6 +497,8 @@ fun BathroomDeposit(
                             if (errorMsg != null) {
                                 Text(
                                     text = errorMsg!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }

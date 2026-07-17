@@ -125,3 +125,7 @@
 
 # AHURepository
 -keep class com.ahu.ahutong.data.AHURepository { *; }
+
+# Evaluation
+-keep class com.ahu.ahutong.data.EvaluationRepository { *; }
+-keep interface com.ahu.ahutong.data.crawler.api.jwxt.EvaluationApi { *; }

@@ -402,6 +402,7 @@ private fun DialDialog(
                 ) {
                     Text(
                         text = "请选择校区",
+                        color = 0.n1 withNight 100.n1,
                         style = MaterialTheme.typography.headlineMedium
                     )
                 }
@@ -427,6 +428,7 @@ private fun DialDialog(
                                 onDismiss()
                             }
                             .padding(24.dp, 16.dp),
+                        color = 0.n1 withNight 100.n1,
                         textAlign = TextAlign.Center
                     )
                     Box(
@@ -446,6 +448,7 @@ private fun DialDialog(
                                 onDismiss()
                             }
                             .padding(24.dp, 16.dp),
+                        color = 0.n1 withNight 100.n1,
                         textAlign = TextAlign.Center
                     )
                 }

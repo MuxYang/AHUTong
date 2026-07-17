@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ahu.ahutong.data.weather.WeatherResponse
+import com.ahu.ahutong.ui.state.WeatherHomeMode
 import com.ahu.ahutong.ui.state.WeatherViewModel
 import com.kyant.monet.n1
 import com.kyant.monet.a1
@@ -239,10 +240,33 @@ fun Weather(
                     color = 0.n1 withNight 100.n1
                 )
                 Text(
-                    "选择要在首页卡片上显示的信息：",
+                    "选择首页天气样式和详细卡片信息：",
                     style = MaterialTheme.typography.bodyMedium,
                     color = 50.n1 withNight 80.n1
                 )
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    "首页样式",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = 0.n1 withNight 100.n1
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WeatherModeChip(
+                        text = "详细",
+                        selected = config.mode == WeatherHomeMode.Detailed,
+                        onClick = {
+                            weatherViewModel.updateHomeConfig(config.copy(mode = WeatherHomeMode.Detailed))
+                        }
+                    )
+                    WeatherModeChip(
+                        text = "精简",
+                        selected = config.mode == WeatherHomeMode.Compact,
+                        onClick = {
+                            weatherViewModel.updateHomeConfig(config.copy(mode = WeatherHomeMode.Compact))
+                        }
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
 
                 data class SettingItem(val key: String, val label: String, val value: Boolean, val onChange: (Boolean) -> Unit)
@@ -251,16 +275,16 @@ fun Weather(
                     SettingItem("showOnHome", "在首页显示天气", config.showOnHome) {
                         weatherViewModel.updateHomeConfig(config.copy(showOnHome = it))
                     },
-                    SettingItem("showLocation", "显示城市名", config.showLocation) {
+                    SettingItem("showLocation", "详细卡片显示城市名", config.showLocation) {
                         weatherViewModel.updateHomeConfig(config.copy(showLocation = it))
                     },
-                    SettingItem("showTemp", "显示温度", config.showTemp) {
+                    SettingItem("showTemp", "详细卡片显示温度", config.showTemp) {
                         weatherViewModel.updateHomeConfig(config.copy(showTemp = it))
                     },
-                    SettingItem("showWeather", "显示天气状况", config.showWeather) {
+                    SettingItem("showWeather", "详细卡片显示天气状况", config.showWeather) {
                         weatherViewModel.updateHomeConfig(config.copy(showWeather = it))
                     },
-                    SettingItem("showAqi", "显示空气质量", config.showAqi) {
+                    SettingItem("showAqi", "详细卡片显示空气质量", config.showAqi) {
                         weatherViewModel.updateHomeConfig(config.copy(showAqi = it))
                     },
                 )
@@ -282,6 +306,34 @@ fun Weather(
             }
         }
     }
+}
+
+@Composable
+private fun WeatherModeChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Text(
+                text = text,
+                color = if (selected) {
+                    100.n1 withNight 100.n1
+                } else {
+                    0.n1 withNight 100.n1
+                }
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = 100.n1 withNight 20.n1,
+            labelColor = 0.n1 withNight 100.n1,
+            selectedContainerColor = 85.a1 withNight 35.a1,
+            selectedLabelColor = 100.n1 withNight 100.n1
+        )
+    )
 }
 
 @Composable

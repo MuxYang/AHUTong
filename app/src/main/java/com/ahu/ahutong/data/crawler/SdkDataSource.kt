@@ -20,6 +20,7 @@ import com.ahu.ahutong.data.model.Card
 import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.data.model.Exam
 import com.ahu.ahutong.data.model.Grade
+import com.ahu.ahutong.data.model.GradeStudentProfile
 import com.ahu.ahutong.sdk.LocalServiceClient
 import com.ahu.ahutong.sdk.RustSDK
 import com.google.gson.Gson
@@ -97,23 +98,42 @@ class SdkDataSource : BaseDataSource {
     }
 
     override suspend fun getGrade(): AHUResponse<Grade> {
+        val profiles = resolveGradeProfiles()
+
         // 优先使用 HTTP 客户端
         val httpClient = getHttpClient()
         if (httpClient != null) {
+            if (profiles.size > 1) {
+                getHttpGradesForProfiles(httpClient, profiles)?.let { return it }
+            }
+
             Log.d("LocalServiceClient", "[getGrade] Using HTTP client")
             val result = httpClient.getGrade()
             if (result.isSuccess) {
                 val data = result.getOrThrow()
-                return convertGradeResponse(data)
+                return convertGradeResponse(data).also {
+                    cacheSingleProfileGrade(profiles, it.data)
+                }
             }
 
             Log.w("LocalServiceClient", "[getGrade] HTTP failed, fallback to JNI: ${result.exceptionOrNull()?.message}")
+            if (profiles.size > 1) {
+                Log.w("LocalServiceClient", "[getGrade] multi-profile HTTP failed, fallback to Android crawler")
+                return crawlerFallback.getGrade()
+            }
             val jniResult = RustSDK.getGradeSafe()
             if (jniResult.isSuccess) {
-                return convertGradeResponse(jniResult.getOrThrow())
+                return convertGradeResponse(jniResult.getOrThrow()).also {
+                    cacheSingleProfileGrade(profiles, it.data)
+                }
             }
 
             Log.w("LocalServiceClient", "[getGrade] JNI failed, fallback to Android crawler: ${jniResult.exceptionOrNull()?.message}")
+            return crawlerFallback.getGrade()
+        }
+
+        if (profiles.size > 1) {
+            Log.d("LocalServiceClient", "[getGrade] multi-profile without HTTP client, fallback to Android crawler")
             return crawlerFallback.getGrade()
         }
 
@@ -121,7 +141,9 @@ class SdkDataSource : BaseDataSource {
         Log.d("LocalServiceClient", "[getGrade] Fallback to JNI")
         val result = RustSDK.getGradeSafe()
         if (result.isSuccess) {
-            return convertGradeResponse(result.getOrThrow())
+            return convertGradeResponse(result.getOrThrow()).also {
+                cacheSingleProfileGrade(profiles, it.data)
+            }
         }
 
         return try {
@@ -140,31 +162,90 @@ class SdkDataSource : BaseDataSource {
         }
     }
 
+    suspend fun getGradeStudentProfiles(): List<GradeStudentProfile> =
+        crawlerFallback.getGradeStudentProfiles()
+
+    private suspend fun resolveGradeProfiles(): List<GradeStudentProfile> {
+        return runCatching { getGradeStudentProfiles() }
+            .onSuccess { Log.i(TAG, "resolveGradeProfiles size=${it.size}") }
+            .onFailure { Log.w(TAG, "resolveGradeProfiles failed", it) }
+            .getOrDefault(emptyList())
+    }
+
+    private suspend fun getHttpGradesForProfiles(
+        httpClient: LocalServiceClient,
+        profiles: List<GradeStudentProfile>
+    ): AHUResponse<Grade>? {
+        Log.d("LocalServiceClient", "[getGrade] multi-profile HTTP fetch count=${profiles.size}")
+        val perProfileGrades = linkedMapOf<GradeStudentProfile, Grade?>()
+        profiles.forEach { profile ->
+            val result = httpClient.getGrade(profile.id)
+            val grade = if (result.isSuccess) {
+                convertGradeResponse(result.getOrThrow()).data
+            } else {
+                Log.w(
+                    "LocalServiceClient",
+                    "[getGrade] profile fetch failed id=${profile.id.maskStudentId()}: " +
+                        result.exceptionOrNull()?.message
+                )
+                null
+            }
+            perProfileGrades[profile] = grade
+        }
+
+        if (perProfileGrades.values.none { it != null }) {
+            Log.w("LocalServiceClient", "[getGrade] multi-profile HTTP returned no grade data")
+            return null
+        }
+
+        AHUCache.savePerProfileGrades(perProfileGrades)
+        return mergeProfileGrades(perProfileGrades.values.filterNotNull())
+    }
+
+    private fun cacheSingleProfileGrade(profiles: List<GradeStudentProfile>, grade: Grade?) {
+        if (profiles.size != 1 || grade == null) return
+        AHUCache.savePerProfileGrades(mapOf(profiles.first() to grade))
+    }
+
 
     override suspend fun getGpaRankFromHtml(studentId: String): AHUResponse<GpaRankInfo> {
         val response = AHUResponse<GpaRankInfo>()
+        val maskedStudentId = studentId.maskStudentId()
+        Log.i(TAG, "getGpaRankFromHtml start studentId=$maskedStudentId")
         try {
             val htmlResponse = JwxtApi.API.getGpaRankPage(studentId)
+            Log.i(
+                TAG,
+                "getGpaRankFromHtml http code=${htmlResponse.code()} " +
+                    "success=${htmlResponse.isSuccessful} " +
+                    "finalUrl=${htmlResponse.raw().request.url.toString().redactStudentId(studentId)}"
+            )
             if (!htmlResponse.isSuccessful || htmlResponse.body() == null) {
                 response.code = -1
                 response.msg = "获取成绩排名页面失败"
+                Log.w(TAG, "getGpaRankFromHtml empty/non-success body studentId=$maskedStudentId")
                 return response
             }
 
             val html = htmlResponse.body()!!.string()
-            val pattern = Regex(
-                "var gpaSemesterModel\\s*=\\s*(\\{.*?\\});",
-                RegexOption.DOT_MATCHES_ALL
+            Log.i(
+                TAG,
+                "getGpaRankFromHtml html length=${html.length} " +
+                    "hasModel=${GpaRankHtmlParser.hasModelAssignment(html)} " +
+                    "looksLogin=${html.contains("cas/login", ignoreCase = true) || html.contains("tologin", ignoreCase = true)}"
             )
-
-            val match = pattern.find(html)
-                ?: throw Exception("未找到 gpaSemesterModel 变量")
-
-            val jsObject = match.groupValues[1]
+            val jsObject = GpaRankHtmlParser.extractModelObject(html)
+            Log.i(TAG, "getGpaRankFromHtml model extracted length=${jsObject.length}")
 
             val json = convertJsToJson(jsObject)
 
             val gpaRankInfo = Gson().fromJson(json, GpaRankInfo::class.java)
+            Log.i(
+                TAG,
+                "getGpaRankFromHtml parsed gpa=${gpaRankInfo.gpa} " +
+                    "rank=${gpaRankInfo.majorRank}/${gpaRankInfo.majorHeadCount} " +
+                    "semesters=${gpaRankInfo.gpaSemesterSubs.size}"
+            )
 
             response.code = 0
             response.msg = "success"
@@ -172,7 +253,7 @@ class SdkDataSource : BaseDataSource {
             return response
 
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "getGpaRankFromHtml failed studentId=$maskedStudentId", e)
             response.code = -1
             response.msg = "解析失败：${e.message}"
             return response
@@ -257,6 +338,39 @@ class SdkDataSource : BaseDataSource {
     private fun convertJsToJson(js: String): String {
         return js
             .replace(Regex("'"), "\"")                // 单引号 → 双引号
+    }
+
+    private fun mergeProfileGrades(grades: List<Grade>): AHUResponse<Grade> {
+        val termGradeList = grades
+            .flatMap { it.termGradeList ?: emptyList() }
+
+        val grade = Grade()
+        grade.totalCredit = termGradeList.sumOf {
+            it.termTotalCredit?.toDoubleOrNull() ?: 0.0
+        }.toString()
+        grade.totalGradePoint = termGradeList.sumOf {
+            val avg = it.termGradePointAverage?.toDoubleOrNull() ?: 0.0
+            val credit = it.termTotalCredit?.toDoubleOrNull() ?: 0.0
+            avg * credit
+        }.toString()
+
+        val weightedGradePointSum = termGradeList.sumOf {
+            val avg = it.termGradePointAverage?.toDoubleOrNull() ?: 0.0
+            val credit = it.termTotalCredit?.toDoubleOrNull() ?: 0.0
+            avg * credit
+        }
+        grade.totalGradePointAverage = if (grade.totalCredit.toDouble() > 0) {
+            "%.2f".format(weightedGradePointSum / grade.totalCredit.toDouble())
+        } else {
+            "0.0"
+        }
+        grade.termGradeList = termGradeList
+
+        return AHUResponse<Grade>().apply {
+            code = 0
+            msg = "Success"
+            data = grade
+        }
     }
 
 
@@ -531,5 +645,15 @@ class SdkDataSource : BaseDataSource {
         val lastURL = JwxtApi.API.getGrade().raw().request.url.toString()
         val data = lastURL.split("/")
         return data.last()
+    }
+
+    private fun String.maskStudentId(): String {
+        if (length <= 4) return "****"
+        return take(2) + "***" + takeLast(2)
+    }
+
+    private fun String.redactStudentId(studentId: String): String {
+        if (studentId.isBlank()) return this
+        return replace(studentId, studentId.maskStudentId())
     }
 }

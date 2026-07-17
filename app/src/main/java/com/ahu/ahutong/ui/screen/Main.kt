@@ -36,6 +36,7 @@ import com.ahu.ahutong.ui.screen.main.BathroomDeposit
 import com.ahu.ahutong.ui.screen.main.CardBalanceDeposit
 import com.ahu.ahutong.ui.screen.main.CmbCardRecharge
 import com.ahu.ahutong.ui.screen.main.ElectricityDeposit
+import com.ahu.ahutong.ui.screen.main.Evaluation
 import com.ahu.ahutong.ui.screen.main.Exam
 import com.ahu.ahutong.ui.screen.main.FreeClassroom
 import com.ahu.ahutong.ui.screen.main.Grade
@@ -180,13 +181,20 @@ fun Main(
                 SchoolCalendar(navController = navController)
             }
             animatedComposable("grade") {
-                Grade()
+                Grade(
+                    onNavigateToEvaluation = {
+                        navController.navigate("evaluation")
+                    }
+                )
             }
             animatedComposable("phone_book") {
                 PhoneBook()
             }
             animatedComposable("exam") {
                 Exam()
+            }
+            animatedComposable("evaluation") {
+                Evaluation()
             }
             animatedComposable("free_classroom") {
                 FreeClassroom()
@@ -303,6 +311,7 @@ fun Main(
                 Text(
                     text = "当前登录状态已过期，请重新登录!",
                     modifier = Modifier.padding(horizontal = 24.dp),
+                    color = 0.n1 withNight 100.n1,
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
@@ -316,6 +325,7 @@ fun Main(
                             onReLoginDismiss()
                         }
                         .padding(12.dp, 8.dp),
+                    color = 100.n1 withNight 100.n1,
                     style = MaterialTheme.typography.titleMedium
                 )
             }
