@@ -745,6 +745,8 @@ def build_and_sign(repo: Path, config: dict[str, Any], version_name: str) -> Pat
         "sign",
         "--ks",
         str(keystore["path"]),
+        "--ks-type",
+        "PKCS12",
         "--ks-key-alias",
         str(keystore["key_alias"]),
         "--ks-pass",
