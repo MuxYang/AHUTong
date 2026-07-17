@@ -28,8 +28,8 @@ android {
         applicationId = "com.ahu.ahutong"
         minSdk = 26
         targetSdk = 36
-        versionCode = 319
-        versionName = "3.1.9"
+        versionCode = 320
+        versionName = "3.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters += listOf("arm64-v8a")
