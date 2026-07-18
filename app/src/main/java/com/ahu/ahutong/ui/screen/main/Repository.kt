@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -271,12 +272,16 @@ internal fun RepositoryMarkdownReader(
 
     val context = LocalContext.current
     val markwon = remember(context) { Markwon.create(context) }
-    val markdownTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val markdownTextColor = (10.n1 withNight 90.n1).toArgb()
+    val markdownLinkColor = (40.a1 withNight 80.a1).toArgb()
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize(0.8f)
                 .clip(RoundedCornerShape(20.dp))
                 .background(96.n1 withNight 16.n1)
                 .padding(18.dp),
@@ -323,7 +328,7 @@ internal fun RepositoryMarkdownReader(
                     AndroidView(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(420.dp),
+                            .weight(1f),
                         factory = { viewContext ->
                             ScrollView(viewContext).apply {
                                 addView(
@@ -337,8 +342,9 @@ internal fun RepositoryMarkdownReader(
                         },
                         update = { scrollView ->
                             val textView = scrollView.getChildAt(0) as TextView
-                            textView.setTextColor(markdownTextColor)
                             markwon.setMarkdown(textView, markdownState.document.content)
+                            textView.setTextColor(markdownTextColor)
+                            textView.setLinkTextColor(markdownLinkColor)
                         }
                     )
                 }

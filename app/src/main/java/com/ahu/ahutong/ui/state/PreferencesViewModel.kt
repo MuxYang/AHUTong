@@ -3,6 +3,7 @@ package com.ahu.ahutong.ui.state
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ahu.ahutong.data.dao.PreferencesManager
+import com.ahu.ahutong.data.model.AppThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,9 @@ class PreferencesViewModel @Inject constructor(private val preferencesManager: P
     private val _themeColor = MutableStateFlow<String?>(null)
     val themeColor: StateFlow<String?> = _themeColor.asStateFlow()
 
+    private val _appThemeMode = MutableStateFlow(AppThemeMode.FOLLOW_SYSTEM)
+    val appThemeMode: StateFlow<AppThemeMode> = _appThemeMode.asStateFlow()
+
     private val _courseReminderEnabled = MutableStateFlow(false)
     val courseReminderEnabled: StateFlow<Boolean> = _courseReminderEnabled.asStateFlow()
 
@@ -37,6 +41,11 @@ class PreferencesViewModel @Inject constructor(private val preferencesManager: P
         _repositoryAccelerationSource.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            preferencesManager.themeMode.collect {
+                _appThemeMode.value = it
+            }
+        }
         viewModelScope.launch {
             preferencesManager.themeColor.collect {
                 _themeColor.value = it
@@ -107,6 +116,12 @@ class PreferencesViewModel @Inject constructor(private val preferencesManager: P
     fun setThemeColor(value: String?) {
         viewModelScope.launch {
             preferencesManager.setThemeColor(value)
+        }
+    }
+
+    fun setAppThemeMode(value: AppThemeMode) {
+        viewModelScope.launch {
+            preferencesManager.setThemeMode(value)
         }
     }
 
